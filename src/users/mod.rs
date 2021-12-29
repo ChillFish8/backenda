@@ -1,39 +1,23 @@
-mod user_info;
-mod notifications;
-mod room_info;
-mod playlist_info;
+pub mod user_info;
+pub mod notifications;
+pub mod room_info;
+pub mod playlist_info;
 
 use poem::web::Data;
 use poem::Result;
-use poem_openapi::auth::Bearer;
 use poem_openapi::payload::Json;
-use poem_openapi::{OpenApi, SecurityScheme, ApiResponse};
+use poem_openapi::OpenApi;
 use poem_openapi::param::Query;
-use poem_openapi::types::ToJSON;
-use serde::Serialize;
 use serde_json::Value;
 
 use user_info::{User, Guild};
 
 use crate::ApiTags;
+use crate::utils::{JsonResponse, TokenBearer};
 use crate::db::Session;
 use crate::users::notifications::Notification;
 use crate::users::playlist_info::{Playlist, PlaylistEntry};
 use crate::users::room_info::Room;
-
-#[derive(SecurityScheme)]
-#[oai(type = "bearer")]
-pub struct TokenBearer(Bearer);
-
-
-#[derive(ApiResponse)]
-pub enum JsonResponse<T: Send + Sync + ToJSON> {
-    #[oai(status = 200)]
-    Ok(Json<T>),
-
-    #[oai(status = 401)]
-    Unauthorized,
-}
 
 
 pub struct UsersApi;
@@ -105,7 +89,7 @@ impl UsersApi {
             &id.0,
         ).await?;
 
-        if res.is_none() {
+        if res.is_some() {
             Ok(JsonResponse::Ok(Json(Value::Null)))
         } else {
             Ok(JsonResponse::Unauthorized)

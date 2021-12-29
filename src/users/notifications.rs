@@ -1,9 +1,24 @@
-use poem_openapi::Object;
-use anyhow::{anyhow, Error, Result};
+use std::str::FromStr;
+use poem_openapi::{Object, Enum};
+use anyhow::{anyhow, Result};
 use scylla::IntoTypedRows;
+use strum::{Display, EnumString};
+use uuid::Uuid;
 
 use crate::db::Session;
 use super::user_info;
+
+#[derive(Enum, Display, EnumString)]
+#[strum(serialize_all = "lowercase", ascii_case_insensitive)]
+#[oai(rename_all = "lowercase")]
+pub enum Icons {
+    News,
+    Premium,
+    Info,
+    Coins,
+    Issues,
+    Discord,
+}
 
 
 #[derive(Object)]
@@ -12,7 +27,7 @@ pub struct Notification {
     pub title: String,
     pub description: Option<String>,
     pub created_on: i64,
-    pub icon: Option<String>,
+    pub icon: Option<Icons>,
 }
 
 
@@ -25,6 +40,10 @@ pub async fn get_user_notifications_for_token(
         Some(user_id) => user_id,
     };
 
+    get_user_notifications(sess, user_id).await.map(Some)
+}
+
+pub async fn get_user_notifications(sess: &Session, user_id: i64) -> Result<Vec<Notification>> {
     let result = sess.query_prepared(
         "SELECT id, title, description, icon, created_on FROM notifications WHERE recipient_id = ?;",
         (user_id,),
@@ -33,27 +52,34 @@ pub async fn get_user_notifications_for_token(
     let rows = result.rows
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
-    type NotificationInfo = (i64, String, Option<String>, Option<String>, chrono::Duration);
+    type NotificationInfo = (Uuid, String, Option<String>, Option<String>, chrono::Duration);
     let rows: Vec<Notification> = rows.into_typed::<NotificationInfo>()
-        .filter_map(|v| v.ok())
+        .filter_map(|v| {
+            v.ok()
+        })
         .map(|v| Notification {
             id: v.0.to_string(),
             title: v.1,
             description: v.2,
-            icon: v.3,
+            icon: Option::flatten(v.3.map(|v| Icons::from_str(&v).ok())),
             created_on: v.4.num_seconds(),
         })
         .collect();
 
-    Ok(Some(rows))
+    Ok(rows)
 }
 
 
-pub async  fn delete_user_notification(
+pub async fn delete_user_notification(
     sess: &Session,
     token: &str,
     id: &str
 ) -> Result<Option<()>> {
+    let id = match Uuid::from_str(id) {
+        Err(_) => return Ok(Some(())),
+        Ok(id) => id,
+    };
+
     let user_id = match user_info::get_user_id_from_token(sess, token).await? {
         None => return Ok(None),
         Some(user_id) => user_id,

@@ -8,6 +8,8 @@ extern crate lazy_static;
 mod users;
 mod db;
 mod auth;
+mod notifications;
+mod utils;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -24,6 +26,7 @@ use tokio::time::Instant;
 pub enum ApiTags {
     User,
     Auth,
+    Notifications
 }
 
 #[tokio::main]
@@ -40,7 +43,9 @@ async fn main() -> anyhow::Result<()> {
         .unwrap();
 
     let api_service = OpenApiService::new(
-            users::UsersApi.combine(auth::AuthApi),
+            users::UsersApi
+                .combine(auth::AuthApi)
+                .combine(notifications::NotificationsApi),
             "Spooderfy API",
             "1.0.0"
         )

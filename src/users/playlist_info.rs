@@ -1,6 +1,7 @@
 use poem_openapi::Object;
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Result};
 use scylla::IntoTypedRows;
+use uuid::Uuid;
 
 use crate::db::Session;
 use super::user_info;
@@ -51,12 +52,12 @@ pub async fn get_playlists_for_token(
     let rows = result.rows
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
-    type PlaylistInfo = (String, String, Option<String>, Vec<String>, bool, bool, Option<String>, i32);
+    type PlaylistInfo = (Uuid, String, Option<String>, Vec<String>, bool, bool, Option<String>, i32);
 
     let playlists = rows.into_typed::<PlaylistInfo>()
         .filter_map(|v| v.ok())
         .map(|info| Playlist {
-            id: info.0,
+            id: info.0.to_string(),
             owner_id: user_id.to_string(),
             title: info.1,
             description: info.2,
@@ -93,12 +94,12 @@ pub async fn get_playlist_entries_for_token(
     let rows = result.rows
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
-    type EntryInfo = (String, String, Option<String>, Option<String>, bool, bool, i32);
+    type EntryInfo = (Uuid, String, Option<String>, Option<String>, bool, bool, i32);
 
     let playlists = rows.into_typed::<EntryInfo>()
         .filter_map(|v| v.ok())
         .map(|info| PlaylistEntry {
-            id: info.0,
+            id: info.0.to_string(),
             owner_id: user_id.to_string(),
             title: info.1,
             description: info.2,

@@ -1,6 +1,7 @@
 use poem_openapi::Object;
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Result};
 use scylla::IntoTypedRows;
+use uuid::Uuid;
 
 use crate::db::Session;
 use super::user_info;
@@ -55,7 +56,7 @@ pub async fn get_active_room_for_token(
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
     type RoomInfo = (
-        String, Option<i64>, i64,
+        Uuid, Option<i64>, i64,
         Option<String>, Option<String>, String,
         Option<String>, bool, bool,
         Option<String>, chrono::Duration,
@@ -67,7 +68,7 @@ pub async fn get_active_room_for_token(
     };
 
     Ok(Some(Some(Room {
-        id: info.0,
+        id: info.0.to_string(),
         guild_id: info.1.map(|v| v.to_string()),
         owner_id: info.2.to_string(),
         active_playlist: info.3,
@@ -117,7 +118,7 @@ pub async fn get_rooms_for_token(
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
     type RoomInfo = (
-        String, Option<i64>, i64,
+        Uuid, Option<i64>, i64,
         Option<String>, Option<String>, String,
         Option<String>, bool, bool,
         Option<String>, chrono::Duration, bool,
@@ -126,7 +127,7 @@ pub async fn get_rooms_for_token(
     let rooms = rows.into_typed::<RoomInfo>()
         .filter_map(|v| v.ok())
         .map(|info| Room {
-            id: info.0,
+            id: info.0.to_string(),
             guild_id: info.1.map(|v| v.to_string()),
             owner_id: info.2.to_string(),
             active_playlist: info.3,

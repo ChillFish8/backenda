@@ -13,7 +13,7 @@ pub struct Session(Arc<scylla::Session>, Arc<ARCache<String, PreppedStmt>>);
 impl From<scylla::Session> for Session {
     fn from(s: scylla::Session) -> Self {
         let cache = ARCacheBuilder::new()
-            .set_size(10, num_cpus::get())
+            .set_size(50, num_cpus::get())
             .build()
             .unwrap();
 
