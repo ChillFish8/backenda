@@ -31,3 +31,19 @@ CREATE TABLE IF NOT EXISTS notifications (
     icon text,
     PRIMARY KEY ( id, recipient_id )
 );
+--
+CREATE TABLE IF NOT EXISTS rooms (
+    id uuid,
+    guild_id bigint,
+    owner_id bigint,
+    active_playlist uuid,
+    playing_now uuid,
+    title text,
+    topic text,
+    is_public boolean,
+    invite_only boolean,
+    active boolean,
+    banner text,
+    created_on timestamp,
+    PRIMARY KEY ( id, owner_id, active )
+);

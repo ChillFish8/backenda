@@ -1,5 +1,6 @@
 mod user_info;
 mod notifications;
+mod room_info;
 
 use poem::web::Data;
 use poem::Result;
@@ -7,6 +8,8 @@ use poem_openapi::auth::Bearer;
 use poem_openapi::payload::Json;
 use poem_openapi::{OpenApi, SecurityScheme, ApiResponse};
 use poem_openapi::param::Query;
+use poem_openapi::types::ToJSON;
+use serde::Serialize;
 use serde_json::Value;
 
 use user_info::{User, Guild};
@@ -14,6 +17,7 @@ use user_info::{User, Guild};
 use crate::ApiTags;
 use crate::db::Session;
 use crate::users::notifications::Notification;
+use crate::users::room_info::Room;
 
 #[derive(SecurityScheme)]
 #[oai(type = "bearer")]
@@ -21,40 +25,14 @@ pub struct TokenBearer(Bearer);
 
 
 #[derive(ApiResponse)]
-pub enum GetUserResp {
+pub enum JsonResponse<T: Send + Sync + ToJSON> {
     #[oai(status = 200)]
-    Ok(Json<User>),
+    Ok(Json<T>),
 
     #[oai(status = 401)]
     Unauthorized,
 }
 
-#[derive(ApiResponse)]
-pub enum GetUserGuildsResp {
-    #[oai(status = 200)]
-    Ok(Json<Vec<Guild>>),
-
-    #[oai(status = 401)]
-    Unauthorized,
-}
-
-#[derive(ApiResponse)]
-pub enum GetUserNotificationsResp {
-    #[oai(status = 200)]
-    Ok(Json<Vec<Notification>>),
-
-    #[oai(status = 401)]
-    Unauthorized,
-}
-
-#[derive(ApiResponse)]
-pub enum RemoveNotificationResp {
-    #[oai(status = 200)]
-    Ok(Json<Value>),
-
-    #[oai(status = 401)]
-    Unauthorized,
-}
 
 pub struct UsersApi;
 
@@ -68,11 +46,11 @@ impl UsersApi {
         &self,
         session: Data<&Session>,
         token: TokenBearer,
-    ) -> Result<GetUserResp> {
+    ) -> Result<JsonResponse<User>> {
         if let Some(user) = user_info::get_user_from_token(&session, &token.0.token).await? {
-            Ok(GetUserResp::Ok(Json(user)))
+            Ok(JsonResponse::Ok(Json(user)))
         } else {
-            Ok(GetUserResp::Unauthorized)
+            Ok(JsonResponse::Unauthorized)
         }
     }
 
@@ -84,11 +62,11 @@ impl UsersApi {
         &self,
         session: Data<&Session>,
         token: TokenBearer,
-    ) -> Result<GetUserGuildsResp> {
+    ) -> Result<JsonResponse<Vec<Guild>>> {
         if let Some(guilds) = user_info::get_user_guilds_from_token(&session, &token.0.token).await? {
-            Ok(GetUserGuildsResp::Ok(Json(guilds)))
+            Ok(JsonResponse::Ok(Json(guilds)))
         } else {
-            Ok(GetUserGuildsResp::Unauthorized)
+            Ok(JsonResponse::Unauthorized)
         }
     }
 
@@ -100,25 +78,25 @@ impl UsersApi {
         &self,
         session: Data<&Session>,
         token: TokenBearer,
-    ) -> Result<GetUserNotificationsResp> {
+    ) -> Result<JsonResponse<Vec<Notification>>> {
         let res = notifications::get_user_notifications_for_token(&session, &token.0.token).await?;
         if let Some(ns) = res {
-            Ok(GetUserNotificationsResp::Ok(Json(ns)))
+            Ok(JsonResponse::Ok(Json(ns)))
         } else {
-            Ok(GetUserNotificationsResp::Unauthorized)
+            Ok(JsonResponse::Unauthorized)
         }
     }
 
     /// Remove User Notification
     ///
     /// Removes a given notification from a user.
-    #[oai(path = "/users/@me/rooms", method = "delete", tag = "ApiTags::User")]
+    #[oai(path = "/users/@me/notifications", method = "delete", tag = "ApiTags::User")]
     pub async fn remove_user_notifications(
         &self,
         id: Query<String>,
         session: Data<&Session>,
         token: TokenBearer,
-    ) -> Result<RemoveNotificationResp> {
+    ) -> Result<JsonResponse<Value>> {
         let res = notifications::delete_user_notification(
             &session,
             &token.0.token,
@@ -126,9 +104,9 @@ impl UsersApi {
         ).await?;
 
         if res.is_none() {
-            Ok(RemoveNotificationResp::Ok(Json(Value::Null)))
+            Ok(JsonResponse::Ok(Json(Value::Null)))
         } else {
-            Ok(RemoveNotificationResp::Unauthorized)
+            Ok(JsonResponse::Unauthorized)
         }
     }
 
@@ -140,8 +118,12 @@ impl UsersApi {
         &self,
         session: Data<&Session>,
         token: TokenBearer,
-    ) -> Result<GetUserGuildsResp> {
-        todo!()
+    ) -> Result<JsonResponse<Option<Room>>> {
+        if let Some(room) = room_info::get_active_room_for_token(&session, &token.0.token).await? {
+            Ok(JsonResponse::Ok(Json(room)))
+        } else {
+            Ok(JsonResponse::Unauthorized)
+        }
     }
 
     /// Get User Rooms
@@ -152,8 +134,12 @@ impl UsersApi {
         &self,
         session: Data<&Session>,
         token: TokenBearer,
-    ) -> Result<GetUserGuildsResp> {
-        todo!()
+    ) -> Result<JsonResponse<Vec<Room>>> {
+        if let Some(rooms) = room_info::get_rooms_for_token(&session, &token.0.token).await? {
+            Ok(JsonResponse::Ok(Json(rooms)))
+        } else {
+            Ok(JsonResponse::Unauthorized)
+        }
     }
 }
 
