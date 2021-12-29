@@ -22,3 +22,12 @@ CREATE TABLE IF NOT EXISTS access_tokens (
 )
 WITH DEFAULT_TIME_TO_LIVE = 2419200;
 --
+CREATE TABLE IF NOT EXISTS notifications (
+    id uuid,
+    recipient_id bigint,
+    title text,
+    description text,
+    created_on timestamp,
+    icon text,
+    PRIMARY KEY ( id, recipient_id )
+);

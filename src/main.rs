@@ -15,11 +15,16 @@ use poem::{Result, Endpoint, EndpointExt, Response, Route, Server, IntoResponse,
 use poem::listener::TcpListener;
 use poem::middleware::Cors;
 use poem::http::Method;
-use poem_openapi::{OpenApiService, OpenApi};
+use poem_openapi::{Tags, OpenApiService, OpenApi};
 
 use concread::arcache::{ARCache, ARCacheBuilder};
 use tokio::time::Instant;
 
+#[derive(Tags)]
+pub enum ApiTags {
+    User,
+    Auth,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

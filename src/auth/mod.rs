@@ -10,6 +10,7 @@ use poem_openapi::Object;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 
+use crate::ApiTags;
 use crate::auth::discord::Guild;
 use crate::db::Session;
 
@@ -26,7 +27,7 @@ impl AuthApi {
     ///
     /// Exchanges a Discord code for a generated access token used for
     /// authorization.
-    #[oai(path = "/auth/authorize", method = "get")]
+    #[oai(path = "/auth/authorize", method = "get", tag = "ApiTags::Auth")]
     pub async fn exchange_code(
         &self,
         code: Query<String>,
@@ -67,7 +68,7 @@ impl AuthApi {
     /// Revoke Token
     ///
     /// Revokes the given access token.
-    #[oai(path = "/auth/revoke", method = "post")]
+    #[oai(path = "/auth/revoke", method = "post", tag = "ApiTags::Auth")]
     pub async fn revoke_token(
         &self,
         token: Query<String>,
