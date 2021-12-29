@@ -21,3 +21,4 @@ CREATE TABLE IF NOT EXISTS access_tokens (
     PRIMARY KEY ( access_token )
 )
 WITH DEFAULT_TIME_TO_LIVE = 2419200;
+--
