@@ -47,3 +47,40 @@ CREATE TABLE IF NOT EXISTS rooms (
     created_on timestamp,
     PRIMARY KEY ( id, owner_id, active )
 );
+--
+CREATE TABLE IF NOT EXISTS playlists (
+    id uuid,
+    owner_id bigint,
+    title text,
+    description text,
+    items set<uuid>,
+    nsfw boolean,
+    is_public boolean,
+    banner text,
+    votes int,
+    PRIMARY KEY ( id, owner_id )
+);
+--
+CREATE TABLE IF NOT EXISTS playlist_votes (
+    user_id bigint,
+    playlist_id uuid,
+    PRIMARY KEY ( user_id )
+);
+--
+CREATE TABLE IF NOT EXISTS playlists_entries (
+    id uuid,
+    owner_id bigint,
+    title text,
+    description text,
+    ref_link text,
+    nsfw boolean,
+    is_public boolean,
+    votes int,
+    PRIMARY KEY ( id, owner_id )
+);
+--
+CREATE TABLE IF NOT EXISTS playlist_entries_votes (
+    user_id bigint,
+    entry_id uuid,
+    PRIMARY KEY ( user_id )
+);

@@ -1,6 +1,7 @@
 mod user_info;
 mod notifications;
 mod room_info;
+mod playlist_info;
 
 use poem::web::Data;
 use poem::Result;
@@ -17,6 +18,7 @@ use user_info::{User, Guild};
 use crate::ApiTags;
 use crate::db::Session;
 use crate::users::notifications::Notification;
+use crate::users::playlist_info::{Playlist, PlaylistEntry};
 use crate::users::room_info::Room;
 
 #[derive(SecurityScheme)]
@@ -119,10 +121,9 @@ impl UsersApi {
         session: Data<&Session>,
         token: TokenBearer,
     ) -> Result<JsonResponse<Option<Room>>> {
-        if let Some(room) = room_info::get_active_room_for_token(&session, &token.0.token).await? {
-            Ok(JsonResponse::Ok(Json(room)))
-        } else {
-            Ok(JsonResponse::Unauthorized)
+        match room_info::get_active_room_for_token(&session, &token.0.token).await? {
+            None => Ok(JsonResponse::Unauthorized),
+            Some(room) =>  Ok(JsonResponse::Ok(Json(room))),
         }
     }
 
@@ -135,10 +136,39 @@ impl UsersApi {
         session: Data<&Session>,
         token: TokenBearer,
     ) -> Result<JsonResponse<Vec<Room>>> {
-        if let Some(rooms) = room_info::get_rooms_for_token(&session, &token.0.token).await? {
-            Ok(JsonResponse::Ok(Json(rooms)))
-        } else {
-            Ok(JsonResponse::Unauthorized)
+        match room_info::get_rooms_for_token(&session, &token.0.token).await? {
+            None => Ok(JsonResponse::Unauthorized),
+            Some(rooms) =>  Ok(JsonResponse::Ok(Json(rooms))),
+        }
+    }
+
+    /// Get User Playlists
+    ///
+    /// Get all user's playlists.
+    #[oai(path = "/users/@me/playlists", method = "get", tag = "ApiTags::User")]
+    pub async fn get_user_playlists(
+        &self,
+        session: Data<&Session>,
+        token: TokenBearer,
+    ) -> Result<JsonResponse<Vec<Playlist>>> {
+        match playlist_info::get_playlists_for_token(&session, &token.0.token).await? {
+            None => Ok(JsonResponse::Unauthorized),
+            Some(playlists) =>  Ok(JsonResponse::Ok(Json(playlists))),
+        }
+    }
+
+    /// Get User Playlist Entries
+    ///
+    /// Get all user playlist entries.
+    #[oai(path = "/users/@me/entries", method = "get", tag = "ApiTags::User")]
+    pub async fn get_user_entries(
+        &self,
+        session: Data<&Session>,
+        token: TokenBearer,
+    ) -> Result<JsonResponse<Vec<PlaylistEntry>>> {
+        match playlist_info::get_playlist_entries_for_token(&session, &token.0.token).await? {
+            None => Ok(JsonResponse::Unauthorized),
+            Some(entries) =>  Ok(JsonResponse::Ok(Json(entries))),
         }
     }
 }

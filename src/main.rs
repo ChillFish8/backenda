@@ -70,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
             async move {
                 let _ = tokio::signal::ctrl_c().await;
             },
-            Some(Duration::from_secs(5)),
+            Some(Duration::from_secs(2)),
         )
         .await?;
 
