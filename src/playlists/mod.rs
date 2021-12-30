@@ -76,7 +76,7 @@ impl PlaylistsApi {
 
     /// Upvote Playlist
     ///
-    /// Upvote a specific playlist.
+    /// Upvote a specific playlist returning the newly updated playlist.
     #[oai(path = "/playlists/vote", method = "post", tag = "ApiTags::Playlists")]
     pub async fn upvote_playlist(
         &self,
