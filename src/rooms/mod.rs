@@ -196,3 +196,12 @@ pub async fn set_room_playlist(sess: &Session, id: Uuid, playlist_id: Uuid) -> a
 
     Ok(())
 }
+
+pub async fn set_room_currently_playing(sess: &Session, id: Uuid, entry_id: Uuid) -> anyhow::Result<()> {
+    sess.query_prepared(
+        "UPDATE rooms SET playing_now = ? WHERE id = ?;",
+        (entry_id, id)
+    ).await?;
+
+    Ok(())
+}

@@ -16,9 +16,9 @@ use user_info::{User, Guild};
 use crate::ApiTags;
 use crate::utils::{JsonResponse, TokenBearer};
 use crate::db::Session;
+use crate::playlists::{get_playlist_by_id, Playlist, PlaylistEntry};
 use crate::rooms::models::Room;
 use crate::users::notifications::Notification;
-use crate::users::playlist_info::{Playlist, PlaylistEntry};
 
 
 pub struct UsersApi;
@@ -144,23 +144,87 @@ impl UsersApi {
     #[oai(path = "/users/@me/rooms/playlist", method = "put", tag = "ApiTags::User")]
     pub async fn update_active_room_playlist(
         &self,
-        playlist: Query<Uuid>,
+        playlist_id: Query<Uuid>,
         session: Data<&Session>,
         token: TokenBearer,
-    ) -> Result<JsonResponse<Value>> {
+    ) -> Result<JsonResponse<Room>> {
+        let playlist = match get_playlist_by_id(&session, playlist_id.0).await? {
+            None => return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "No playlist exists with this id."
+            })))),
+            Some(playlist) => playlist,
+        };
+
         let room = match room_info::get_active_room_for_token(&session, &token.0.token).await? {
             None => return Ok(JsonResponse::Unauthorized),
             Some(room) =>  room,
         };
 
-        match room {
-            None => Ok(JsonResponse::BadRequest(Json(json!({
+        let mut room = match room {
+            None => return Ok(JsonResponse::BadRequest(Json(json!({
                 "detail": "User has no active room."
             })))),
-            Some(mut room) => {
-                todo!()
-            }
+            Some(room) => room,
+        };
+
+        crate::rooms::set_room_playlist(&session, room.id.clone(), playlist.id).await?;
+
+        room.active_playlist = Some(playlist.id);
+
+        Ok(JsonResponse::Ok(Json(room)))
+    }
+
+    /// Set Room Now Playing
+    ///
+    /// Sets the user's active room playing now entry if applicable.
+    #[oai(path = "/users/@me/rooms/entry", method = "put", tag = "ApiTags::User")]
+    pub async fn update_active_room_active_entry(
+        &self,
+        entry_id: Query<Uuid>,
+        session: Data<&Session>,
+        token: TokenBearer,
+    ) -> Result<JsonResponse<Room>> {
+        let room = match room_info::get_active_room_for_token(&session, &token.0.token).await? {
+            None => return Ok(JsonResponse::Unauthorized),
+            Some(room) =>  room,
+        };
+
+        let mut room = match room {
+            None => return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "User has no active room."
+            })))),
+            Some(room) => room,
+        };
+
+        let active_id = match room.active_playlist.clone() {
+            None => return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "No playlist selected."
+            })))),
+            Some(active_id) => active_id,
+        };
+
+        let playlist = match get_playlist_by_id(&session, active_id).await? {
+            None => return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "No playlist exists with this id."
+            })))),
+            Some(playlist) => playlist,
+        };
+
+        if !playlist.items.contains(&entry_id) {
+            return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "No playlist entry exists for the current playlist."
+            }))))
         }
+
+        crate::rooms::set_room_currently_playing(
+            &session,
+            room.id.clone(),
+            entry_id.0.clone(),
+        ).await?;
+
+        room.playing_now = Some(entry_id.0);
+
+        Ok(JsonResponse::Ok(Json(room)))
     }
 
     /// Get User Rooms

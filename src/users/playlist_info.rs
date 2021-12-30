@@ -6,31 +6,8 @@ use uuid::Uuid;
 use crate::db::Session;
 use crate::utils::JsSafeBigInt;
 use super::user_info;
+use crate::playlists::{PlaylistEntry, Playlist};
 
-#[derive(Object, FromRow)]
-pub struct Playlist {
-    id: Uuid,
-    owner_id: JsSafeBigInt,
-    banner: Option<String>,
-    description: Option<String>,
-    items: Vec<Uuid>,
-    is_public: bool,
-    nsfw: bool,
-    title: String,
-    votes: i32,
-}
-
-#[derive(Object, FromRow)]
-pub struct PlaylistEntry {
-    id: Uuid,
-    owner_id: JsSafeBigInt,
-    description: Option<String>,
-    is_public: bool,
-    nsfw: bool,
-    ref_link: Option<String>,
-    title: String,
-    votes: i32,
-}
 
 pub async fn get_playlists_for_token(
     sess: &Session,

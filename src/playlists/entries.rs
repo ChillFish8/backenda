@@ -1,33 +1,29 @@
-mod entries;
-
 use anyhow::anyhow;
 use uuid::Uuid;
 use poem_openapi::Object;
 use scylla::{FromRow, IntoTypedRows};
 
-pub use entries::*;
 use crate::db::Session;
 use crate::utils::JsSafeBigInt;
 
 
 #[derive(Object, FromRow)]
-pub struct Playlist {
+pub struct PlaylistEntry {
     pub id: Uuid,
     pub owner_id: JsSafeBigInt,
-    pub banner: Option<String>,
     pub description: Option<String>,
     pub is_public: bool,
-    pub items: Vec<Uuid>,
     pub nsfw: bool,
+    pub ref_link: Option<String>,
     pub title: String,
     pub votes: i32,
 }
 
 
-pub async fn get_playlist_by_id(sess: &Session, id: Uuid) -> anyhow::Result<Option<Playlist>> {
+pub async fn get_entry_by_id(sess: &Session, id: Uuid) -> anyhow::Result<Option<PlaylistEntry>> {
     let result = sess.query_prepared(
         r#"
-        SELECT * FROM playlists WHERE id = ?;
+        SELECT * FROM playlist_entries WHERE id = ?;
         "#,
         (id,)
     ).await?;
@@ -36,10 +32,10 @@ pub async fn get_playlist_by_id(sess: &Session, id: Uuid) -> anyhow::Result<Opti
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
 
-    let playlist = match rows.into_typed::<Playlist>().next() {
+    let entry = match rows.into_typed::<PlaylistEntry>().next() {
         None => return Ok(None),
         Some(v) => v?,
     };
 
-    Ok(Some(playlist))
+    Ok(Some(entry))
 }
