@@ -44,7 +44,6 @@ CREATE TABLE IF NOT EXISTS rooms (
     invite_only boolean,
     active boolean,
     banner text,
-    created_on timestamp,
     PRIMARY KEY ( id, owner_id, active )
 );
 --

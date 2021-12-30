@@ -3,6 +3,7 @@ use poem_openapi::payload::Json;
 use poem_openapi::types::ToJSON;
 use poem_openapi::{ApiResponse, SecurityScheme};
 use poem_openapi::auth::Bearer;
+use serde_json::Value;
 
 
 lazy_static!{
@@ -33,6 +34,9 @@ async fn token_checker(_: &Request, bearer: Bearer) -> Option<()> {
 pub enum JsonResponse<T: Send + Sync + ToJSON> {
     #[oai(status = 200)]
     Ok(Json<T>),
+
+    #[oai(status = 400)]
+    BadRequest(Json<Value>),
 
     #[oai(status = 401)]
     Unauthorized,

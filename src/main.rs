@@ -10,6 +10,8 @@ mod db;
 mod auth;
 mod notifications;
 mod utils;
+mod rooms;
+mod models;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,7 +19,7 @@ use poem::{Result, Endpoint, EndpointExt, Response, Route, Server, IntoResponse,
 use poem::listener::TcpListener;
 use poem::middleware::Cors;
 use poem::http::Method;
-use poem_openapi::{Tags, OpenApiService, OpenApi};
+use poem_openapi::{Tags, OpenApiService};
 
 use concread::arcache::{ARCache, ARCacheBuilder};
 use tokio::time::Instant;
@@ -26,7 +28,8 @@ use tokio::time::Instant;
 pub enum ApiTags {
     User,
     Auth,
-    Notifications
+    Notifications,
+    Rooms,
 }
 
 #[tokio::main]
@@ -43,11 +46,9 @@ async fn main() -> anyhow::Result<()> {
         .unwrap();
 
     let api_service = OpenApiService::new(
-            users::UsersApi
-                .combine(auth::AuthApi)
-                .combine(notifications::NotificationsApi),
-            "Spooderfy API",
-            "1.0.0"
+        (users::UsersApi, auth::AuthApi, notifications::NotificationsApi, rooms::RoomsApi),
+        "Spooderfy API",
+        "1.0.0"
         )
         .description("The Spooderfy api system.")
         .server("http://127.0.0.1:8000/api/v0");
@@ -107,9 +108,13 @@ async fn log<E: Endpoint>(next: E, req: Request) -> Result<Response> {
             Ok(resp)
         },
         Err(e) => {
-            error!("{}", e);
 
             let resp = e.as_response();
+
+            if resp.status().as_u16() >= 500 {
+                error!("{}", &e);
+            }
+
             info!(
                 "{} -> {} {} [ {:?} ] - {:?}",
                 method.as_str(),

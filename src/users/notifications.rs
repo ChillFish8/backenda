@@ -23,7 +23,7 @@ pub enum Icons {
 
 #[derive(Object)]
 pub struct Notification {
-    pub id: String,
+    pub id: Uuid,
     pub title: String,
     pub description: Option<String>,
     pub created_on: i64,
@@ -58,7 +58,7 @@ pub async fn get_user_notifications(sess: &Session, user_id: i64) -> Result<Vec<
             v.ok()
         })
         .map(|v| Notification {
-            id: v.0.to_string(),
+            id: v.0,
             title: v.1,
             description: v.2,
             icon: Option::flatten(v.3.map(|v| Icons::from_str(&v).ok())),

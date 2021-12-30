@@ -8,11 +8,11 @@ use super::user_info;
 
 #[derive(Object)]
 pub struct Playlist {
-    id: String,
+    id: Uuid,
     owner_id: String,
     title: String,
     description: Option<String>,
-    items: Vec<String>,
+    items: Vec<Uuid>,
     nsfw: bool,
     is_public: bool,
     banner: Option<String>,
@@ -21,7 +21,7 @@ pub struct Playlist {
 
 #[derive(Object)]
 pub struct PlaylistEntry {
-    id: String,
+    id: Uuid,
     owner_id: String,
     title: String,
     description: Option<String>,
@@ -52,12 +52,12 @@ pub async fn get_playlists_for_token(
     let rows = result.rows
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
-    type PlaylistInfo = (Uuid, String, Option<String>, Vec<String>, bool, bool, Option<String>, i32);
+    type PlaylistInfo = (Uuid, String, Option<String>, Vec<Uuid>, bool, bool, Option<String>, i32);
 
     let playlists = rows.into_typed::<PlaylistInfo>()
         .filter_map(|v| v.ok())
         .map(|info| Playlist {
-            id: info.0.to_string(),
+            id: info.0,
             owner_id: user_id.to_string(),
             title: info.1,
             description: info.2,
@@ -99,7 +99,7 @@ pub async fn get_playlist_entries_for_token(
     let playlists = rows.into_typed::<EntryInfo>()
         .filter_map(|v| v.ok())
         .map(|info| PlaylistEntry {
-            id: info.0.to_string(),
+            id: info.0,
             owner_id: user_id.to_string(),
             title: info.1,
             description: info.2,

@@ -15,9 +15,9 @@ use user_info::{User, Guild};
 use crate::ApiTags;
 use crate::utils::{JsonResponse, TokenBearer};
 use crate::db::Session;
+use crate::models::Room;
 use crate::users::notifications::Notification;
 use crate::users::playlist_info::{Playlist, PlaylistEntry};
-use crate::users::room_info::Room;
 
 
 pub struct UsersApi;
