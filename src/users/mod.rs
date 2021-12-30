@@ -8,7 +8,7 @@ use poem::Result;
 use poem_openapi::payload::Json;
 use poem_openapi::OpenApi;
 use poem_openapi::param::Query;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use user_info::{User, Guild};
 
@@ -108,6 +108,32 @@ impl UsersApi {
         match room_info::get_active_room_for_token(&session, &token.0.token).await? {
             None => Ok(JsonResponse::Unauthorized),
             Some(room) =>  Ok(JsonResponse::Ok(Json(room))),
+        }
+    }
+
+    /// Close User Active Room
+    ///
+    /// Closes the current user room if applicable.
+    #[oai(path = "/users/@me/rooms/current", method = "delete", tag = "ApiTags::User")]
+    pub async fn close_user_active_room(
+        &self,
+        session: Data<&Session>,
+        token: TokenBearer,
+    ) -> Result<JsonResponse<Value>> {
+        let room = match room_info::get_active_room_for_token(&session, &token.0.token).await? {
+            None => return Ok(JsonResponse::Unauthorized),
+            Some(room) =>  room,
+        };
+
+        match room {
+            None => Ok(JsonResponse::Ok(Json(Value::Null))),
+            Some(mut room) => {
+                crate::rooms::set_room_inactive(&session, room.id.clone()).await?;
+
+                room.active = false;
+
+                Ok(JsonResponse::Ok(Json(Value::Null)))
+            }
         }
     }
 

@@ -86,7 +86,7 @@ impl RoomsApi {
             Some(r) => r,
         };
 
-        delete_room_by_id(&session, room.id.clone()).await?;
+        set_room_inactive(&session, room.id.clone()).await?;
 
         Ok(JsonResponse::Ok(Json(room)))
     }
@@ -181,9 +181,9 @@ async fn get_room_by_id(sess: &Session, id: Uuid) -> anyhow::Result<Option<Room>
     Ok(Some(Room::from(info)))
 }
 
-async fn delete_room_by_id(sess: &Session, id: Uuid) -> anyhow::Result<()> {
+pub async fn set_room_inactive(sess: &Session, id: Uuid) -> anyhow::Result<()> {
     sess.query_prepared(
-        "DELETE FROM rooms WHERE id = ?;",
+        "UPDATE rooms SET active = false WHERE id = ?;",
         (id,)
     ).await?;
 
