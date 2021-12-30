@@ -11,15 +11,15 @@ mod auth;
 mod notifications;
 mod utils;
 mod rooms;
-mod models;
+mod playlists;
 
 use std::sync::Arc;
 use std::time::Duration;
-use poem::{Result, Endpoint, EndpointExt, Response, Route, Server, IntoResponse, Request};
+use poem::{Endpoint, EndpointExt, IntoResponse, Request, Response, Result, Route, Server};
 use poem::listener::TcpListener;
 use poem::middleware::Cors;
 use poem::http::Method;
-use poem_openapi::{Tags, OpenApiService};
+use poem_openapi::{OpenApiService, Tags};
 
 use concread::arcache::{ARCache, ARCacheBuilder};
 use tokio::time::Instant;

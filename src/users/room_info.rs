@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use scylla::IntoTypedRows;
 
 use crate::db::Session;
-use crate::models::{Room, RoomInfo, RoomInfoNoActive};
+use crate::rooms::models::Room;
 use super::user_info;
 
 
@@ -29,31 +29,15 @@ pub async fn get_rooms_for_token(
     };
 
     let result = sess.query_prepared(
-        r#"
-        SELECT
-            id,
-            guild_id,
-            owner_id,
-            active_playlist,
-            playing_now,
-            title,
-            topic,
-            is_public,
-            invite_only,
-            banner,
-            active
-        FROM rooms
-        WHERE owner_id = ?;
-        "#,
+        "SELECT * FROM rooms WHERE owner_id = ?;",
         (user_id,)
     ).await?;
 
     let rows = result.rows
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
-    let rooms = rows.into_typed::<RoomInfo>()
+    let rooms = rows.into_typed::<Room>()
         .filter_map(|v| v.ok())
-        .map(|v| Room::from(v))
         .collect();
 
     Ok(Some(rooms))
@@ -62,21 +46,7 @@ pub async fn get_rooms_for_token(
 
 pub async fn get_active_room_for_user_id(sess: &Session, user_id: i64) -> Result<Option<Room>> {
     let result = sess.query_prepared(
-        r#"
-        SELECT
-            id,
-            guild_id,
-            owner_id,
-            active_playlist,
-            playing_now,
-            title,
-            topic,
-            is_public,
-            invite_only,
-            banner
-        FROM rooms
-        WHERE owner_id = ? AND active = true;
-        "#,
+        "SELECT * FROM rooms WHERE owner_id = ? AND active = true;",
         (user_id,)
     ).await?;
 
@@ -84,10 +54,10 @@ pub async fn get_active_room_for_user_id(sess: &Session, user_id: i64) -> Result
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
 
-    let info = match rows.into_typed::<RoomInfoNoActive>().next() {
+    let room = match rows.into_typed::<Room>().next() {
         None => return Ok(None),
         Some(v) => v?,
     };
 
-    Ok(Some(Room::from(info)))
+    Ok(Some(room))
 }

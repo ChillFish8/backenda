@@ -9,13 +9,14 @@ use poem_openapi::payload::Json;
 use poem_openapi::OpenApi;
 use poem_openapi::param::Query;
 use serde_json::{json, Value};
+use uuid::Uuid;
 
 use user_info::{User, Guild};
 
 use crate::ApiTags;
 use crate::utils::{JsonResponse, TokenBearer};
 use crate::db::Session;
-use crate::models::Room;
+use crate::rooms::models::Room;
 use crate::users::notifications::Notification;
 use crate::users::playlist_info::{Playlist, PlaylistEntry};
 
@@ -133,6 +134,31 @@ impl UsersApi {
                 room.active = false;
 
                 Ok(JsonResponse::Ok(Json(Value::Null)))
+            }
+        }
+    }
+
+    /// Set Room Playlist
+    ///
+    /// Sets the user's active room playlist if applicable.
+    #[oai(path = "/users/@me/rooms/playlist", method = "put", tag = "ApiTags::User")]
+    pub async fn update_active_room_playlist(
+        &self,
+        playlist: Query<Uuid>,
+        session: Data<&Session>,
+        token: TokenBearer,
+    ) -> Result<JsonResponse<Value>> {
+        let room = match room_info::get_active_room_for_token(&session, &token.0.token).await? {
+            None => return Ok(JsonResponse::Unauthorized),
+            Some(room) =>  room,
+        };
+
+        match room {
+            None => Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "User has no active room."
+            })))),
+            Some(mut room) => {
+                todo!()
             }
         }
     }

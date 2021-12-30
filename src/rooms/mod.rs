@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use poem::web::Data;
 use poem::Result;
 use poem_openapi::payload::Json;
-use poem_openapi::{Object, OpenApi, ApiResponse};
+use poem_openapi::{ApiResponse, Object, OpenApi};
 use poem_openapi::param::Query;
 use scylla::IntoTypedRows;
 use serde_json::{json, Value};
@@ -11,9 +11,11 @@ use uuid::Uuid;
 use crate::utils::{JsonResponse, SuperUserBearer, TokenBearer};
 use crate::ApiTags;
 use crate::db::Session;
-use crate::models::{Room, RoomInfo};
+use crate::rooms::models::Room;
 use crate::users::notifications::{get_user_notifications, Icons, Notification};
 use crate::users::{room_info, user_info};
+
+pub mod models;
 
 
 #[derive(Object, Debug)]
@@ -117,55 +119,51 @@ impl RoomsApi {
             }))))
         }
 
-        session.query(
-            r#"
-            INSERT INTO rooms (
-                id,
-                owner_id,
-                active,
-                active_playlist,
-                banner,
-                guild_id,
-                invite_only,
-                is_public,
-                playing_now,
-                title,
-                topic
-            ) VALUES (uuid(), ?, true, ?, ?, ?, ?, ?, null, ?, ?);
-            "#,
-            (
-                user_id, payload.0.active_playlist, payload.0.banner,
-                payload.0.guild_id, payload.0.invite_only, payload.0.is_public,
-                payload.0.title, payload.0.topic,
-                )
-        ).await?;
-
-        let room = room_info::get_active_room_for_user_id(&session, user_id)
-            .await?
-            .ok_or_else(|| anyhow!("expected room in database after creation"))?;
-
+        let room = create_room_from_payload(&session, user_id, payload.0).await?;
         Ok(JsonResponse::Ok(Json(room)))
     }
 }
 
-async fn get_room_by_id(sess: &Session, id: Uuid) -> anyhow::Result<Option<Room>> {
-    let result = sess.query_prepared(
+
+async fn create_room_from_payload(
+    sess: &Session,
+    user_id: i64,
+    payload: RoomCreationPayload,
+) -> anyhow::Result<Room> {
+    sess.query(
         r#"
-        SELECT
+        INSERT INTO rooms (
             id,
-            guild_id,
             owner_id,
+            active,
             active_playlist,
+            banner,
+            guild_id,
+            invite_only,
+            is_public,
             playing_now,
             title,
-            topic,
-            is_public,
-            invite_only,
-            banner,
-            active
-        FROM rooms
-        WHERE id = ?;
+            topic
+        ) VALUES (uuid(), ?, true, ?, ?, ?, ?, ?, null, ?, ?);
         "#,
+        (
+            user_id, payload.active_playlist, payload.banner,
+            payload.guild_id, payload.invite_only, payload.is_public,
+            payload.title, payload.topic,
+            )
+    ).await?;
+
+    let room = room_info::get_active_room_for_user_id(sess, user_id)
+        .await?
+        .ok_or_else(|| anyhow!("expected room in database after creation"))?;
+
+    Ok(room)
+}
+
+
+async fn get_room_by_id(sess: &Session, id: Uuid) -> anyhow::Result<Option<Room>> {
+    let result = sess.query_prepared(
+        "SELECT * FROM rooms WHERE id = ?;",
         (id,)
     ).await?;
 
@@ -173,18 +171,27 @@ async fn get_room_by_id(sess: &Session, id: Uuid) -> anyhow::Result<Option<Room>
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
 
-    let info = match rows.into_typed::<RoomInfo>().next() {
+    let room = match rows.into_typed::<Room>().next() {
         None => return Ok(None),
         Some(v) => v?,
     };
 
-    Ok(Some(Room::from(info)))
+    Ok(Some(room))
 }
 
 pub async fn set_room_inactive(sess: &Session, id: Uuid) -> anyhow::Result<()> {
     sess.query_prepared(
         "UPDATE rooms SET active = false WHERE id = ?;",
         (id,)
+    ).await?;
+
+    Ok(())
+}
+
+pub async fn set_room_playlist(sess: &Session, id: Uuid, playlist_id: Uuid) -> anyhow::Result<()> {
+    sess.query_prepared(
+        "UPDATE rooms SET active_playlist = ? WHERE id = ?;",
+        (playlist_id, id)
     ).await?;
 
     Ok(())

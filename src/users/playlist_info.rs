@@ -1,34 +1,35 @@
 use poem_openapi::Object;
 use anyhow::{anyhow, Result};
-use scylla::IntoTypedRows;
+use scylla::{IntoTypedRows, FromRow};
 use uuid::Uuid;
 
 use crate::db::Session;
+use crate::utils::JsSafeBigInt;
 use super::user_info;
 
-#[derive(Object)]
+#[derive(Object, FromRow)]
 pub struct Playlist {
     id: Uuid,
-    owner_id: String,
-    title: String,
+    owner_id: JsSafeBigInt,
+    banner: Option<String>,
     description: Option<String>,
     items: Vec<Uuid>,
-    nsfw: bool,
     is_public: bool,
-    banner: Option<String>,
-    votes: u32,
+    nsfw: bool,
+    title: String,
+    votes: i32,
 }
 
-#[derive(Object)]
+#[derive(Object, FromRow)]
 pub struct PlaylistEntry {
     id: Uuid,
-    owner_id: String,
-    title: String,
+    owner_id: JsSafeBigInt,
     description: Option<String>,
-    ref_link: Option<String>,
-    nsfw: bool,
     is_public: bool,
-    votes: u32,
+    nsfw: bool,
+    ref_link: Option<String>,
+    title: String,
+    votes: i32,
 }
 
 pub async fn get_playlists_for_token(
@@ -41,32 +42,15 @@ pub async fn get_playlists_for_token(
     };
 
     let result = sess.query_prepared(
-        r#"
-        SELECT id, title, description, items, nsfw, is_public, banner, votes
-        FROM playlists
-        WHERE owner_id = ?
-        "#,
+        "SELECT * FROM playlists WHERE owner_id = ?",
         (user_id,)
     ).await?;
 
     let rows = result.rows
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
-    type PlaylistInfo = (Uuid, String, Option<String>, Vec<Uuid>, bool, bool, Option<String>, i32);
-
-    let playlists = rows.into_typed::<PlaylistInfo>()
+    let playlists = rows.into_typed::<Playlist>()
         .filter_map(|v| v.ok())
-        .map(|info| Playlist {
-            id: info.0,
-            owner_id: user_id.to_string(),
-            title: info.1,
-            description: info.2,
-            items: info.3,
-            nsfw: info.4,
-            is_public: info.5,
-            banner: info.6,
-            votes: info.7 as u32,
-        })
         .collect();
 
     Ok(Some(playlists))
@@ -83,31 +67,15 @@ pub async fn get_playlist_entries_for_token(
     };
 
     let result = sess.query_prepared(
-        r#"
-        SELECT id, title, description, ref_link, nsfw, is_public, votes
-        FROM playlists_entries
-        WHERE owner_id = ?
-        "#,
+        "SELECT * FROM playlists_entries WHERE owner_id = ?",
         (user_id,)
     ).await?;
 
     let rows = result.rows
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
-    type EntryInfo = (Uuid, String, Option<String>, Option<String>, bool, bool, i32);
-
-    let playlists = rows.into_typed::<EntryInfo>()
+    let playlists = rows.into_typed::<PlaylistEntry>()
         .filter_map(|v| v.ok())
-        .map(|info| PlaylistEntry {
-            id: info.0,
-            owner_id: user_id.to_string(),
-            title: info.1,
-            description: info.2,
-            ref_link: info.3,
-            nsfw: info.4,
-            is_public: info.5,
-            votes: info.6 as u32,
-        })
         .collect();
 
     Ok(Some(playlists))
