@@ -2,17 +2,16 @@ use anyhow::anyhow;
 use poem::web::Data;
 use poem::Result;
 use poem_openapi::payload::Json;
-use poem_openapi::{ApiResponse, Object, OpenApi};
+use poem_openapi::{Object, OpenApi};
 use poem_openapi::param::Query;
 use scylla::IntoTypedRows;
-use serde_json::{json, Value};
+use serde_json::json;
 use uuid::Uuid;
 
 use crate::utils::{JsonResponse, SuperUserBearer, TokenBearer};
 use crate::ApiTags;
 use crate::db::Session;
 use crate::rooms::models::Room;
-use crate::users::notifications::{get_user_notifications, Icons, Notification};
 use crate::users::{room_info, user_info};
 
 pub mod models;

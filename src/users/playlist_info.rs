@@ -1,10 +1,7 @@
-use poem_openapi::Object;
 use anyhow::{anyhow, Result};
-use scylla::{IntoTypedRows, FromRow};
-use uuid::Uuid;
+use scylla::IntoTypedRows;
 
 use crate::db::Session;
-use crate::utils::JsSafeBigInt;
 use super::user_info;
 use crate::playlists::{PlaylistEntry, Playlist};
 

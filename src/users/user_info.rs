@@ -76,6 +76,50 @@ pub async fn get_user_from_token(sess: &Session, token: &str) -> anyhow::Result<
     Ok(None)
 }
 
+/// Gets the amount of credits the user currently has by a given token.
+pub async fn get_vote_credits_for_token(sess: &Session, token: &str) -> anyhow::Result<Option<i32>> {
+    let user_id = match get_user_id_from_token(sess, token).await? {
+        None => return Ok(None),
+        Some(user_id) => user_id,
+    };
+
+    get_user_vote_credits(sess, user_id).await.map(|v| Some(v))
+}
+
+/// Gets the amount of credits the user currently has.
+///
+/// This assumes the user currently exists.
+pub async fn get_user_vote_credits(sess: &Session, user_id: i64) -> anyhow::Result<i32> {
+    let result = sess.query_prepared(
+        "SELECT credits FROM user_vote_credits WHERE id = ?;",
+        (user_id,)
+    ).await?;
+
+    let rows = result.rows
+        .ok_or_else(|| anyhow!("expected returned rows"))?;
+
+
+    let (credits,) = match rows.into_typed::<(i32,)>().next() {
+        None => return Ok(0),
+        Some(v) => v?,
+    };
+
+    Ok(credits)
+}
+
+
+/// Increments a user's vote credits by a given amount.
+///
+/// This assumes the user currently exists.
+pub async fn adjust_user_credits(sess: &Session, user_id: i64, value: i32) -> anyhow::Result<()> {
+    sess.query_prepared(
+        "UPDATE user_vote_credits SET credit = credit + ? WHERE user_id = ?;",
+        (value, user_id)
+    ).await?;
+
+    Ok(())
+}
+
 
 /// Gets all accessible guilds for a given access token.
 pub async fn get_user_guilds_from_token(sess: &Session, token: &str) -> anyhow::Result<Option<Vec<Guild>>> {

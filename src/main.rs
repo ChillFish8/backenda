@@ -30,6 +30,7 @@ pub enum ApiTags {
     Auth,
     Notifications,
     Rooms,
+    Playlists,
 }
 
 #[tokio::main]
@@ -46,7 +47,13 @@ async fn main() -> anyhow::Result<()> {
         .unwrap();
 
     let api_service = OpenApiService::new(
-        (users::UsersApi, auth::AuthApi, notifications::NotificationsApi, rooms::RoomsApi),
+        (
+            users::UsersApi,
+            auth::AuthApi,
+            notifications::NotificationsApi,
+            rooms::RoomsApi,
+            playlists::PlaylistsApi,
+        ),
         "Spooderfy API",
         "1.0.0"
         )

@@ -63,8 +63,9 @@ CREATE TABLE IF NOT EXISTS playlists (
 CREATE TABLE IF NOT EXISTS playlist_votes (
     user_id bigint,
     playlist_id uuid,
-    PRIMARY KEY ( user_id )
-);
+    PRIMARY KEY ( (user_id, playlist_id) )
+)
+WITH DEFAULT_TIME_TO_LIVE = 43200;
 --
 CREATE TABLE IF NOT EXISTS playlists_entries (
     id uuid,
@@ -81,5 +82,13 @@ CREATE TABLE IF NOT EXISTS playlists_entries (
 CREATE TABLE IF NOT EXISTS playlist_entries_votes (
     user_id bigint,
     entry_id uuid,
+    PRIMARY KEY ( (user_id, entry_id) )
+)
+WITH DEFAULT_TIME_TO_LIVE = 43200;
+--
+CREATE TABLE IF NOT EXISTS user_vote_credits (
+    user_id bigint,
+    credits int,
     PRIMARY KEY ( user_id )
 );
+
