@@ -287,6 +287,8 @@ impl PlaylistsApi {
         };
 
         let items = entries::get_entries_with_ids(&session, payload.0.items).await?;
+        let is_nsfw = items.iter().any(|v|  v.nsfw);
+        let items = filter_valid_entries(user_id, items);
 
         if items.is_empty() {
             return Ok(JsonResponse::BadRequest(Json(json!({
@@ -294,25 +296,9 @@ impl PlaylistsApi {
             }))))
         }
 
-        let is_nsfw = items.iter().any(|v|  v.nsfw);
-        let items: Vec<Uuid> = items.into_iter()
-            .map(|v| v.id)
-            .collect();
-
         let playlist_id = Uuid::new_v4();
-        session.query(
-            r#"INSERT INTO playlists (
-                id,
-                owner_id,
-                banner,
-                description,
-                is_public,
-                items,
-                nsfw,
-                title,
-                votes
-            ) VALUE (?, ?, ?, ?, ?, ?, ?, 0)"#,
-            (
+        let playlist = insert_playlist(
+            &session,
                 playlist_id,
                 user_id,
                 payload.0.banner,
@@ -321,16 +307,11 @@ impl PlaylistsApi {
                 items,
                 is_nsfw,
                 payload.0.title,
-            )
-        ).await?;
-
-        let playlist = playlist::get_playlist_by_id(&session, playlist_id)
-            .await?
-            .ok_or_else(|| anyhow!("expected room in database after creation"))?;
+            true,
+        ).await?.ok_or_else(|| anyhow!("expected item in database after creation"))?;
 
         Ok(JsonResponse::Ok(Json(playlist)))
     }
-
 
     /// Create Playlist Entry
     ///
@@ -349,32 +330,227 @@ impl PlaylistsApi {
         };
 
         let entry_id = Uuid::new_v4();
-        session.query(
-            r#"INSERT INTO playlist_entries (
-                id,
-                owner_id,
-                description,
-                is_public,
-                nsfw,
-                ref_link,
-                title,
-                votes
-            ) VALUE (?, ?, ?, ?, ?, ?, ?, 0)"#,
-            (
-                entry_id,
-                user_id,
-                payload.0.description,
-                payload.0.is_public,
-                payload.0.nsfw,
-                payload.0.ref_link,
-                payload.0.title,
-            )
-        ).await?;
-
-        let entry = entries::get_entry_by_id(&session, playlist_id)
-            .await?
-            .ok_or_else(|| anyhow!("expected room in database after creation"))?;
+        let entry = insert_entry(
+            &session,
+            entry_id,
+            user_id,
+            payload.0.description,
+            payload.0.is_public,
+            payload.0.nsfw,
+            payload.0.ref_link,
+            payload.0.title,
+            true,
+        ).await?.ok_or_else(|| anyhow!("expected item in database after creation"))?;
 
         Ok(JsonResponse::Ok(Json(entry)))
     }
+
+    /// Update Playlist
+    ///
+    /// Updates a playlist from the given payload, returning the updated, fully populated
+    /// playlist information (id, etc..).
+    #[oai(path = "/playlists", method = "put", tag = "ApiTags::Playlists")]
+    pub async fn update_playlist(
+        &self,
+        id: Query<Uuid>,
+        payload: Json<PlaylistCreationPayload>,
+        session: Data<&Session>,
+        token: TokenBearer,
+    ) -> Result<JsonResponse<Playlist>> {
+        let user_id = match user_info::get_user_id_from_token(&session, &token.0.token).await? {
+            None => return Ok(JsonResponse::Unauthorized),
+            Some(v) => v,
+        };
+
+        let mut playlist = match playlist::get_playlist_by_id(&session, id.0.clone()).await? {
+            Some(p) => p,
+            None => return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "No playlist exists with this id."
+            })))),
+        };
+
+        if *playlist.owner_id != user_id {
+            return Ok(JsonResponse::Forbidden)
+        }
+
+        let items = entries::get_entries_with_ids(&session, payload.0.items).await?;
+
+        let is_nsfw = items.iter().any(|v|  v.nsfw);
+        let items = filter_valid_entries(user_id, items);
+
+        if items.is_empty() {
+            return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "No valid playlists entries selected."
+            }))))
+        }
+
+        insert_playlist(
+            &session,
+                id.0,
+                user_id,
+                payload.0.banner.clone(),
+                payload.0.description.clone(),
+                payload.0.is_public.clone(),
+                items.clone(),
+                is_nsfw.clone(),
+                payload.0.title.clone(),
+            false,
+        ).await?;
+
+        playlist.items = items;
+        playlist.title = payload.0.title;
+        playlist.description = payload.0.description;
+        playlist.is_public = payload.0.is_public;
+        playlist.nsfw = is_nsfw;
+        playlist.banner = payload.0.banner;
+
+        Ok(JsonResponse::Ok(Json(playlist)))
+    }
+
+    /// Update Playlist Entry
+    ///
+    /// Updates a playlist entry from the given payload, returning the updated, fully populated
+    /// playlist entry (id, etc..).
+    #[oai(path = "/entries", method = "put", tag = "ApiTags::Playlists")]
+    pub async fn update_entry(
+        &self,
+        id: Query<Uuid>,
+        payload: Json<EntryCreationPayload>,
+        session: Data<&Session>,
+        token: TokenBearer,
+    ) -> Result<JsonResponse<PlaylistEntry>> {
+        let user_id = match user_info::get_user_id_from_token(&session, &token.0.token).await? {
+            None => return Ok(JsonResponse::Unauthorized),
+            Some(v) => v,
+        };
+
+        let mut entry = match entries::get_entry_by_id(&session, id.0.clone()).await? {
+            Some(p) => p,
+            None => return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "No playlist entry exists with this id."
+            })))),
+        };
+
+        if *entry.owner_id != user_id {
+            return Ok(JsonResponse::Forbidden)
+        }
+
+        insert_entry(
+            &session,
+            id.0,
+            user_id,
+            payload.0.description.clone(),
+            payload.0.is_public.clone(),
+            payload.0.nsfw.clone(),
+            payload.0.ref_link.clone(),
+            payload.0.title.clone(),
+            false,
+        ).await?;
+
+        entry.title = payload.0.title;
+        entry.ref_link = payload.0.ref_link;
+        entry.is_public = payload.0.is_public;
+        entry.nsfw = payload.0.nsfw;
+        entry.description = payload.0.description;
+
+        Ok(JsonResponse::Ok(Json(entry)))
+    }
+}
+
+
+#[inline]
+fn filter_valid_entries(owner_id: i64, entries: Vec<PlaylistEntry>) -> Vec<Uuid> {
+    entries.into_iter()
+        .filter(|v| v.is_public | (*v.owner_id == owner_id))
+        .map(|v| v.id)
+        .collect()
+}
+
+
+async fn insert_playlist(
+    sess: &Session,
+    id: Uuid,
+    owner_id: i64,
+    banner: Option<String>,
+    description: Option<String>,
+    is_public: bool,
+    items: Vec<Uuid>,
+    is_nsfw: bool,
+    title: String,
+    fetch_updated: bool,
+) -> anyhow::Result<Option<Playlist>> {
+    sess.query(
+        r#"INSERT INTO playlists (
+            id,
+            owner_id,
+            banner,
+            description,
+            is_public,
+            items,
+            nsfw,
+            title,
+            votes
+        ) VALUE (?, ?, ?, ?, ?, ?, ?, 0)"#,
+        (
+            id,
+            owner_id,
+            banner,
+            description,
+            is_public,
+            items,
+            is_nsfw,
+            title,
+        )
+    ).await?;
+
+    let res = if fetch_updated {
+        playlist::get_playlist_by_id(sess, id).await?
+    } else {
+        None
+    };
+
+    Ok(res)
+}
+
+
+async fn insert_entry(
+    sess: &Session,
+    id: Uuid,
+    owner_id: i64,
+    description: Option<String>,
+    is_public: bool,
+    is_nsfw: bool,
+    ref_link: Option<String>,
+    title: String,
+    fetch_updated: bool,
+) -> anyhow::Result<Option<PlaylistEntry>> {
+    sess.query(
+        r#"INSERT INTO playlist_entries (
+            id,
+            owner_id,
+            description,
+            is_public,
+            nsfw,
+            ref_link,
+            title,
+            votes
+        ) VALUE (?, ?, ?, ?, ?, ?, ?, 0)"#,
+        (
+            id,
+            owner_id,
+            description,
+            is_public,
+            is_nsfw,
+            ref_link,
+            title,
+        )
+    ).await?;
+
+    let res = if fetch_updated {
+        entries::get_entry_by_id(sess, id).await?
+    } else {
+        None
+    };
+
+    Ok(res)
 }
