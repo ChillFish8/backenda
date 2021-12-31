@@ -187,10 +187,10 @@ pub async fn set_room_inactive(sess: &Session, id: Uuid) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn set_room_playlist(sess: &Session, id: Uuid, playlist_id: Uuid, is_nsfw: bool) -> anyhow::Result<()> {
+pub async fn set_room_playlist(sess: &Session, id: Uuid, playlist_id: Uuid) -> anyhow::Result<()> {
     sess.query_prepared(
-        "UPDATE rooms SET active_playlist = ?, nsfw = ? WHERE id = ?;",
-        (playlist_id, is_nsfw, id)
+        "UPDATE rooms SET active_playlist = ? WHERE id = ?;",
+        (playlist_id, id)
     ).await?;
 
     Ok(())

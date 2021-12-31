@@ -188,12 +188,7 @@ impl UsersApi {
             Some(room) => room,
         };
 
-        crate::rooms::set_room_playlist(
-            &session,
-            room.id.clone(),
-            playlist.id,
-            playlist.nsfw,
-        ).await?;
+        crate::rooms::set_room_playlist(&session, room.id.clone(), playlist.id).await?;
 
         room.active_playlist = Some(playlist.id);
 
