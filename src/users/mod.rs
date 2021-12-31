@@ -8,7 +8,7 @@ use poem::Result;
 use poem_openapi::payload::Json;
 use poem_openapi::{Object, OpenApi};
 use poem_openapi::param::Query;
-use serde_json::{json, Value};
+use serde_json::Value;
 use uuid::Uuid;
 
 use user_info::{User, Guild};
@@ -40,9 +40,9 @@ impl UsersApi {
         token: TokenBearer,
     ) -> Result<JsonResponse<User>> {
         if let Some(user) = user_info::get_user_from_token(&session, &token.0.token).await? {
-            Ok(JsonResponse::Ok(Json(user)))
+            Ok(JsonResponse::ok(user))
         } else {
-            Ok(JsonResponse::Unauthorized)
+            Ok(JsonResponse::unauthorized())
         }
     }
 
@@ -56,9 +56,9 @@ impl UsersApi {
         token: TokenBearer,
     ) -> Result<JsonResponse<CreditResponse>> {
         if let Some(credits) = user_info::get_vote_credits_for_token(&session, &token.0.token).await? {
-            Ok(JsonResponse::Ok(Json(CreditResponse { credits })))
+            Ok(JsonResponse::ok(CreditResponse { credits }))
         } else {
-            Ok(JsonResponse::Unauthorized)
+            Ok(JsonResponse::unauthorized())
         }
     }
 
@@ -72,9 +72,9 @@ impl UsersApi {
         token: TokenBearer,
     ) -> Result<JsonResponse<Vec<Guild>>> {
         if let Some(guilds) = user_info::get_user_guilds_from_token(&session, &token.0.token).await? {
-            Ok(JsonResponse::Ok(Json(guilds)))
+            Ok(JsonResponse::ok(guilds))
         } else {
-            Ok(JsonResponse::Unauthorized)
+            Ok(JsonResponse::unauthorized())
         }
     }
 
@@ -89,9 +89,9 @@ impl UsersApi {
     ) -> Result<JsonResponse<Vec<Notification>>> {
         let res = notifications::get_user_notifications_for_token(&session, &token.0.token).await?;
         if let Some(ns) = res {
-            Ok(JsonResponse::Ok(Json(ns)))
+            Ok(JsonResponse::ok(ns))
         } else {
-            Ok(JsonResponse::Unauthorized)
+            Ok(JsonResponse::unauthorized())
         }
     }
 
@@ -112,9 +112,9 @@ impl UsersApi {
         ).await?;
 
         if res.is_some() {
-            Ok(JsonResponse::Ok(Json(Value::Null)))
+            Ok(JsonResponse::ok(Value::Null))
         } else {
-            Ok(JsonResponse::Unauthorized)
+            Ok(JsonResponse::unauthorized())
         }
     }
 
@@ -128,8 +128,8 @@ impl UsersApi {
         token: TokenBearer,
     ) -> Result<JsonResponse<Option<Room>>> {
         match room_info::get_active_room_for_token(&session, &token.0.token).await? {
-            None => Ok(JsonResponse::Unauthorized),
-            Some(room) =>  Ok(JsonResponse::Ok(Json(room))),
+            None => Ok(JsonResponse::unauthorized()),
+            Some(room) =>  Ok(JsonResponse::ok(room)),
         }
     }
 
@@ -143,18 +143,18 @@ impl UsersApi {
         token: TokenBearer,
     ) -> Result<JsonResponse<Value>> {
         let room = match room_info::get_active_room_for_token(&session, &token.0.token).await? {
-            None => return Ok(JsonResponse::Unauthorized),
+            None => return Ok(JsonResponse::unauthorized()),
             Some(room) =>  room,
         };
 
         match room {
-            None => Ok(JsonResponse::Ok(Json(Value::Null))),
+            None => Ok(JsonResponse::ok(Value::Null)),
             Some(mut room) => {
                 crate::rooms::set_room_inactive(&session, room.id.clone()).await?;
 
                 room.active = false;
 
-                Ok(JsonResponse::Ok(Json(Value::Null)))
+                Ok(JsonResponse::ok(Value::Null))
             }
         }
     }
@@ -170,21 +170,17 @@ impl UsersApi {
         token: TokenBearer,
     ) -> Result<JsonResponse<Room>> {
         let playlist = match get_playlist_by_id(&session, playlist_id.0).await? {
-            None => return Ok(JsonResponse::BadRequest(Json(json!({
-                "detail": "No playlist exists with this id."
-            })))),
+            None => return Ok(JsonResponse::bad_request("No playlist exists with this id.")),
             Some(playlist) => playlist,
         };
 
         let room = match room_info::get_active_room_for_token(&session, &token.0.token).await? {
-            None => return Ok(JsonResponse::Unauthorized),
+            None => return Ok(JsonResponse::unauthorized()),
             Some(room) =>  room,
         };
 
         let mut room = match room {
-            None => return Ok(JsonResponse::BadRequest(Json(json!({
-                "detail": "User has no active room."
-            })))),
+            None => return Ok(JsonResponse::bad_request("User has no active room.")),
             Some(room) => room,
         };
 
@@ -206,35 +202,27 @@ impl UsersApi {
         token: TokenBearer,
     ) -> Result<JsonResponse<Room>> {
         let room = match room_info::get_active_room_for_token(&session, &token.0.token).await? {
-            None => return Ok(JsonResponse::Unauthorized),
+            None => return Ok(JsonResponse::unauthorized()),
             Some(room) =>  room,
         };
 
         let mut room = match room {
-            None => return Ok(JsonResponse::BadRequest(Json(json!({
-                "detail": "User has no active room."
-            })))),
+            None => return Ok(JsonResponse::bad_request("User has no active room.")),
             Some(room) => room,
         };
 
         let active_id = match room.active_playlist.clone() {
-            None => return Ok(JsonResponse::BadRequest(Json(json!({
-                "detail": "No playlist selected."
-            })))),
+            None => return Ok(JsonResponse::bad_request("No playlist selected.")),
             Some(active_id) => active_id,
         };
 
         let playlist = match get_playlist_by_id(&session, active_id).await? {
-            None => return Ok(JsonResponse::BadRequest(Json(json!({
-                "detail": "No playlist exists with this id."
-            })))),
+            None => return Ok(JsonResponse::bad_request("No playlist exists with this id.")),
             Some(playlist) => playlist,
         };
 
         if !playlist.items.contains(&entry_id) {
-            return Ok(JsonResponse::BadRequest(Json(json!({
-                "detail": "No playlist entry exists for the current playlist."
-            }))))
+            return Ok(JsonResponse::bad_request("No playlist entry exists for the current playlist."))
         }
 
         crate::rooms::set_room_currently_playing(
@@ -258,8 +246,8 @@ impl UsersApi {
         token: TokenBearer,
     ) -> Result<JsonResponse<Vec<Room>>> {
         match room_info::get_rooms_for_token(&session, &token.0.token).await? {
-            None => Ok(JsonResponse::Unauthorized),
-            Some(rooms) =>  Ok(JsonResponse::Ok(Json(rooms))),
+            None => Ok(JsonResponse::unauthorized()),
+            Some(rooms) =>  Ok(JsonResponse::ok(rooms)),
         }
     }
 
@@ -273,8 +261,8 @@ impl UsersApi {
         token: TokenBearer,
     ) -> Result<JsonResponse<Vec<Playlist>>> {
         match playlist_info::get_playlists_for_token(&session, &token.0.token).await? {
-            None => Ok(JsonResponse::Unauthorized),
-            Some(playlists) =>  Ok(JsonResponse::Ok(Json(playlists))),
+            None => Ok(JsonResponse::unauthorized()),
+            Some(playlists) =>  Ok(JsonResponse::ok(playlists)),
         }
     }
 
@@ -288,8 +276,8 @@ impl UsersApi {
         token: TokenBearer,
     ) -> Result<JsonResponse<Vec<PlaylistEntry>>> {
         match playlist_info::get_playlist_entries_for_token(&session, &token.0.token).await? {
-            None => Ok(JsonResponse::Unauthorized),
-            Some(entries) =>  Ok(JsonResponse::Ok(Json(entries))),
+            None => Ok(JsonResponse::unauthorized()),
+            Some(entries) =>  Ok(JsonResponse::ok(entries)),
         }
     }
 }

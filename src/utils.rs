@@ -4,7 +4,7 @@ use std::ops::Deref;
 use poem::Request;
 use poem_openapi::payload::Json;
 use poem_openapi::types::{ParseError, ParseFromJSON, ParseResult, ToJSON, Type};
-use poem_openapi::{ApiResponse, SecurityScheme};
+use poem_openapi::{Object, ApiResponse, SecurityScheme};
 use poem_openapi::auth::Bearer;
 use poem_openapi::registry::MetaSchemaRef;
 use scylla::cql_to_rust::{FromCqlVal, FromCqlValError};
@@ -97,17 +97,56 @@ async fn token_checker(_: &Request, bearer: Bearer) -> Option<()> {
     None
 }
 
+
+#[derive(Object)]
+pub struct Detail {
+    detail: String,
+}
+
+impl From<String> for Detail {
+    fn from(msg: String) -> Self {
+        Self {
+            detail: msg
+        }
+    }
+}
+
+
 #[derive(ApiResponse)]
 pub enum JsonResponse<T: Send + Sync + ToJSON> {
+    /// The request was a success.
     #[oai(status = 200)]
     Ok(Json<T>),
 
+    /// Some part of the request was invalid.
+    ///
+    /// More information is providing in the `detail` field.
     #[oai(status = 400)]
-    BadRequest(Json<Value>),
+    BadRequest(Json<Detail>),
 
+    /// The provided access token has expired.
     #[oai(status = 401)]
     Unauthorized,
 
+    /// You lack the permissions required to perform this action.
     #[oai(status = 403)]
     Forbidden,
+}
+
+impl<T: Send + Sync + ToJSON> JsonResponse<T> {
+    pub fn ok(v: T) -> Self {
+        Self::Ok(Json(v))
+    }
+
+    pub fn bad_request(msg: impl Display) -> Self {
+        Self::BadRequest(Json(Detail::from(msg.to_string())))
+    }
+
+    pub fn forbidden() -> Self {
+        Self::Forbidden
+    }
+
+    pub fn unauthorized() -> Self {
+        Self::Unauthorized
+    }
 }

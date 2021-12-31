@@ -5,7 +5,6 @@ use poem_openapi::payload::Json;
 use poem_openapi::{Object, OpenApi};
 use poem_openapi::param::Query;
 use scylla::IntoTypedRows;
-use serde_json::json;
 use uuid::Uuid;
 
 use crate::utils::{JsonResponse, SuperUserBearer, TokenBearer};
@@ -81,15 +80,13 @@ impl RoomsApi {
         session: Data<&Session>,
     ) -> Result<JsonResponse<Room>> {
         let room = match get_room_by_id(&session, id.0).await? {
-            None => return Ok(JsonResponse::BadRequest(Json(json!({
-                "detail": "User already has an active room"
-            })))),
+            None => return Ok(JsonResponse::bad_request("User already has an active room")),
             Some(r) => r,
         };
 
         set_room_inactive(&session, room.id.clone()).await?;
 
-        Ok(JsonResponse::Ok(Json(room)))
+        Ok(JsonResponse::ok(room))
     }
 
     /// Create Room
@@ -103,7 +100,7 @@ impl RoomsApi {
         session: Data<&Session>,
     ) -> Result<JsonResponse<Room>> {
         let user_id = match user_info::get_user_id_from_token(&session, &token.0.token).await? {
-            None => return Ok(JsonResponse::Unauthorized),
+            None => return Ok(JsonResponse::unauthorized()),
             Some(v) => v,
         };
 
@@ -113,13 +110,11 @@ impl RoomsApi {
         ).await?);
 
         if active_room.is_some() {
-            return Ok(JsonResponse::BadRequest(Json(json!({
-                "detail": "User already has an active room"
-            }))))
+            return Ok(JsonResponse::bad_request("User already has an active room"))
         }
 
         let room = create_room_from_payload(&session, user_id, payload.0).await?;
-        Ok(JsonResponse::Ok(Json(room)))
+        Ok(JsonResponse::ok(room))
     }
 }
 
