@@ -53,6 +53,10 @@ pub async fn get_user_from_token(sess: &Session, token: &str) -> anyhow::Result<
         Some(user_id) => user_id,
     };
 
+    get_user_from_id(sess, user_id).await
+}
+
+pub async fn get_user_from_id(sess: &Session, user_id: i64) -> anyhow::Result<Option<User>> {
     let result = sess.query_prepared(
         "SELECT id, access_servers, avatar, updated_on, username FROM users WHERE id = ?;",
         (user_id,)
@@ -62,18 +66,22 @@ pub async fn get_user_from_token(sess: &Session, token: &str) -> anyhow::Result<
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
     type UserInfo = (i64, HashMap<i64, bool>, Option<String>, chrono::Duration, String);
-    for row in rows.into_typed::<UserInfo>(){
-        let row = row?;
-        return Ok(Some(User {
-            id: row.0.to_string(),
-            access_servers: row.1,
-            avatar: row.2,
-            updated_on: row.3.num_seconds(),
-            username: row.4
-        }))
-    }
 
-    Ok(None)
+    let res = match rows.into_typed::<UserInfo>().next() {
+        None => None,
+        Some(v) => {
+            let v = v?;
+            Some(User {
+                id: v.0.to_string(),
+                access_servers: v.1,
+                avatar: v.2,
+                updated_on: v.3.num_seconds(),
+                username: v.4
+            })
+        },
+    };
+
+    Ok(res)
 }
 
 /// Gets the amount of credits the user currently has by a given token.

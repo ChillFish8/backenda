@@ -118,7 +118,6 @@ impl Deref for PreppedStmt{
 }
 
 
-
 pub async fn connect(node: &str) -> anyhow::Result<Session> {
     let session = SessionBuilder::new()
         .known_node(node)

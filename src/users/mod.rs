@@ -14,7 +14,7 @@ use uuid::Uuid;
 use user_info::{User, Guild};
 
 use crate::ApiTags;
-use crate::utils::{JsonResponse, TokenBearer};
+use crate::utils::{JsonResponse, SuperUserBearer, TokenBearer};
 use crate::db::Session;
 use crate::playlists::{get_playlist_by_id, Playlist, PlaylistEntry};
 use crate::rooms::models::Room;
@@ -48,7 +48,7 @@ impl UsersApi {
 
     /// Get User Credits
     ///
-    /// Get the user data associated with a given token.
+    /// Get the user voting credits associated with a given token.
     #[oai(path = "/users/@me/credits", method = "get", tag = "ApiTags::User")]
     pub async fn get_user_credits(
         &self,
@@ -279,6 +279,26 @@ impl UsersApi {
             None => Ok(JsonResponse::unauthorized()),
             Some(entries) =>  Ok(JsonResponse::ok(entries)),
         }
+    }
+
+    /// Add User Credits
+    ///
+    /// Add the user credits associated with a given token.
+    #[oai(path = "/users/credit", method = "post", tag = "ApiTags::User")]
+    pub async fn add_user_credits(
+        &self,
+        id: Query<i64>,
+        session: Data<&Session>,
+        _token: SuperUserBearer,
+    ) -> Result<JsonResponse<Value>> {
+        let user = user_info::get_user_from_id(&session, id.0).await?;
+        if user.is_none() {
+            return Ok(JsonResponse::bad_request("This user does not exist."))
+        }
+
+        user_info::adjust_user_credits(&session, id.0, 1).await?;
+
+        Ok(JsonResponse::ok(Value::Null))
     }
 }
 
