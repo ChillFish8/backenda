@@ -51,7 +51,7 @@ pub struct EntryCreationPayload {
     nsfw: bool,
 
     #[oai(validator(max_length = 256, pattern=r"https://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"))]
-    ref_link: String,
+    ref_link: Option<String>,
 }
 
 pub struct PlaylistsApi;
@@ -275,7 +275,7 @@ impl PlaylistsApi {
     /// Creates a playlist from the given payload, returning the fully populated
     /// playlist information (id, etc..).
     #[oai(path = "/playlists", method = "post", tag = "ApiTags::Playlists")]
-    pub async fn update_active_room_playlist(
+    pub async fn create_playlist(
         &self,
         payload: Json<PlaylistCreationPayload>,
         session: Data<&Session>,
@@ -329,5 +329,52 @@ impl PlaylistsApi {
             .ok_or_else(|| anyhow!("expected room in database after creation"))?;
 
         Ok(JsonResponse::Ok(Json(playlist)))
+    }
+
+
+    /// Create Playlist Entry
+    ///
+    /// Creates a playlist entry from the given payload, returning the fully populated
+    /// playlist entry (id, etc..).
+    #[oai(path = "/entries", method = "post", tag = "ApiTags::Playlists")]
+    pub async fn create_entry(
+        &self,
+        payload: Json<EntryCreationPayload>,
+        session: Data<&Session>,
+        token: TokenBearer,
+    ) -> Result<JsonResponse<PlaylistEntry>> {
+        let user_id = match user_info::get_user_id_from_token(&session, &token.0.token).await? {
+            None => return Ok(JsonResponse::Unauthorized),
+            Some(v) => v,
+        };
+
+        let entry_id = Uuid::new_v4();
+        session.query(
+            r#"INSERT INTO playlist_entries (
+                id,
+                owner_id,
+                description,
+                is_public,
+                nsfw,
+                ref_link,
+                title,
+                votes
+            ) VALUE (?, ?, ?, ?, ?, ?, ?, 0)"#,
+            (
+                entry_id,
+                user_id,
+                payload.0.description,
+                payload.0.is_public,
+                payload.0.nsfw,
+                payload.0.ref_link,
+                payload.0.title,
+            )
+        ).await?;
+
+        let entry = entries::get_entry_by_id(&session, playlist_id)
+            .await?
+            .ok_or_else(|| anyhow!("expected room in database after creation"))?;
+
+        Ok(JsonResponse::Ok(Json(entry)))
     }
 }
