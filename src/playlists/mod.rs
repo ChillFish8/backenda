@@ -15,7 +15,7 @@ pub use entries::*;
 use crate::ApiTags;
 use crate::db::Session;
 use crate::users::user_info;
-use crate::utils::{JsonResponse, TokenBearer};
+use crate::utils::{JsonResponse, SuperUserBearer, TokenBearer};
 
 
 #[derive(Object, Debug)]
@@ -88,6 +88,36 @@ impl PlaylistsApi {
                 .await
                 .map(|v| Json(v))?
         )
+    }
+
+    /// Superuser Remove Playlist
+    ///
+    /// Forcefully removes a playlist by a superuser.
+    #[oai(path = "/playlists/override", method = "delete", tag = "ApiTags::Playlists")]
+    pub async fn remove_playlist_superuser(
+        &self,
+        id: Query<Uuid>,
+        _token: SuperUserBearer,
+        session: Data<&Session>,
+    ) -> Result<JsonResponse<Value>> {
+        playlist::remove_playlist(&session, id.0).await?;
+
+        Ok(JsonResponse::Ok(Json(Value::Null)))
+    }
+
+    /// Superuser Remove Entry
+    ///
+    /// Forcefully removes a playlist entry by a superuser.
+    #[oai(path = "/entries/override", method = "delete", tag = "ApiTags::Playlists")]
+    pub async fn remove_entry_superuser(
+        &self,
+        id: Query<Uuid>,
+        _token: SuperUserBearer,
+        session: Data<&Session>,
+    ) -> Result<JsonResponse<Value>> {
+        entries::remove_entry(&session, id.0).await?;
+
+        Ok(JsonResponse::Ok(Json(Value::Null)))
     }
 
     /// Delete Playlist
