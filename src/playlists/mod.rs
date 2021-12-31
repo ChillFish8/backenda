@@ -8,7 +8,7 @@ use poem::web::Data;
 use poem_openapi::{Object, OpenApi};
 use poem_openapi::param::Query;
 use poem_openapi::payload::Json;
-use serde_json::json;
+use serde_json::{json, Value};
 
 pub use playlist::*;
 pub use entries::*;
@@ -74,6 +74,84 @@ impl PlaylistsApi {
         )
     }
 
+    /// Get Playlist Entry
+    ///
+    /// Get a specific entry and it's info.
+    #[oai(path = "/entries", method = "get", tag = "ApiTags::Playlists")]
+    pub async fn get_playlist_entry(
+        &self,
+        id: Query<Uuid>,
+        session: Data<&Session>,
+    ) -> Result<Json<Option<PlaylistEntry>>> {
+        Ok(
+            entries::get_entry_by_id(&session, id.0)
+                .await
+                .map(|v| Json(v))?
+        )
+    }
+
+    /// Delete Playlist
+    ///
+    /// Delete a specific playlist providing the user owns the playlist.
+    #[oai(path = "/playlists", method = "delete", tag = "ApiTags::Playlists")]
+    pub async fn delete_playlist(
+        &self,
+        id: Query<Uuid>,
+        session: Data<&Session>,
+        token: TokenBearer,
+    ) -> Result<JsonResponse<Value>> {
+        let user_id = match user_info::get_user_id_from_token(&session, &token.0.token).await? {
+            None => return Ok(JsonResponse::Unauthorized),
+            Some(v) => v,
+        };
+
+        let playlist = match playlist::get_playlist_by_id(&session, id.0).await? {
+            None => return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "Playlist does not exist."
+            })))),
+            Some(playlist) => playlist,
+        };
+
+        if *playlist.owner_id != user_id {
+            return Ok(JsonResponse::Forbidden)
+        }
+
+        playlist::remove_playlist(&session, playlist.id).await?;
+
+        Ok(JsonResponse::Ok(Json(Value::Null)))
+    }
+
+    /// Delete Playlist Entry
+    ///
+    /// Delete a specific entry providing the user owns the entry.
+    #[oai(path = "/entries", method = "delete", tag = "ApiTags::Playlists")]
+    pub async fn delete_playlist_entry(
+        &self,
+        id: Query<Uuid>,
+        session: Data<&Session>,
+        token: TokenBearer,
+    ) -> Result<JsonResponse<Value>> {
+        let user_id = match user_info::get_user_id_from_token(&session, &token.0.token).await? {
+            None => return Ok(JsonResponse::Unauthorized),
+            Some(v) => v,
+        };
+
+        let entry = match entries::get_entry_by_id(&session, id.0).await? {
+            None => return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "Playlist does not exist."
+            })))),
+            Some(entry) => entry,
+        };
+
+        if *entry.owner_id != user_id {
+            return Ok(JsonResponse::Forbidden)
+        }
+
+        entries::remove_entry(&session, entry.id).await?;
+
+        Ok(JsonResponse::Ok(Json(Value::Null)))
+    }
+
     /// Upvote Playlist
     ///
     /// Upvote a specific playlist returning the newly updated playlist.
@@ -116,6 +194,50 @@ impl PlaylistsApi {
         playlist.votes += 1;
 
         Ok(JsonResponse::Ok(Json(playlist)))
+    }
+
+    /// Upvote Playlist Entry
+    ///
+    /// Upvote a specific playlist entry returning the newly updated entry.
+    #[oai(path = "/entries/vote", method = "post", tag = "ApiTags::Playlists")]
+    pub async fn upvote_entry(
+        &self,
+        id: Query<Uuid>,
+        session: Data<&Session>,
+        token: TokenBearer,
+    ) -> Result<JsonResponse<PlaylistEntry>> {
+        let user_id = match user_info::get_user_id_from_token(&session, &token.0.token).await? {
+            None => return Ok(JsonResponse::Unauthorized),
+            Some(v) => v,
+        };
+
+        let mut entry = match entries::get_entry_by_id(&session, id.0).await? {
+            None => return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "Entry does not exist."
+            })))),
+            Some(v) => v,
+        };
+
+        if entries::has_user_voted(&session, user_id, entry.id.clone()).await? {
+            return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "You have already up-voted this entry in the last 12 hours."
+            }))))
+        }
+
+        let credits = user_info::get_user_vote_credits(&session, user_id).await?;
+
+        if credits <= 0 {
+            return Ok(JsonResponse::BadRequest(Json(json!({
+                "detail": "You do not have enough credits."
+            }))))
+        }
+
+        user_info::adjust_user_credits(&session, user_id, -1).await?;
+        entries::upvote_playlist(&session, user_id, entry.id.clone()).await?;
+
+        entry.votes += 1;
+
+        Ok(JsonResponse::Ok(Json(entry)))
     }
 
     /// Create Playlist

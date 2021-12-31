@@ -107,4 +107,7 @@ pub enum JsonResponse<T: Send + Sync + ToJSON> {
 
     #[oai(status = 401)]
     Unauthorized,
+
+    #[oai(status = 403)]
+    Forbidden,
 }

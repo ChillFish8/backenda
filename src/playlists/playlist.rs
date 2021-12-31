@@ -73,3 +73,17 @@ pub async fn has_user_voted(sess: &Session, user_id: i64, playlist_id: Uuid) -> 
 
     Ok(has_votes)
 }
+
+pub async fn remove_playlist(sess: &Session, playlist_id: Uuid) -> anyhow::Result<()> {
+    sess.query_prepared(
+        "DELETE FROM playlists WHERE playlist_id = ?;",
+        (playlist_id,)
+    ).await?;
+
+    sess.query_prepared(
+        "DELETE FROM playlist_votes WHERE playlist_id = ?;",
+        (playlist_id,)
+    ).await?;
+
+    Ok(())
+}

@@ -6,7 +6,7 @@ pub mod playlist_info;
 use poem::web::Data;
 use poem::Result;
 use poem_openapi::payload::Json;
-use poem_openapi::OpenApi;
+use poem_openapi::{Object, OpenApi};
 use poem_openapi::param::Query;
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -21,13 +21,18 @@ use crate::rooms::models::Room;
 use crate::users::notifications::Notification;
 
 
+#[derive(Object)]
+pub struct CreditResponse {
+    credits: i32,
+}
+
 pub struct UsersApi;
 
 #[OpenApi]
 impl UsersApi {
     /// Get User
     ///
-    /// Get the user data associated with a give token.
+    /// Get the user data associated with a given token.
     #[oai(path = "/users/@me", method = "get", tag = "ApiTags::User")]
     pub async fn get_user(
         &self,
@@ -41,9 +46,25 @@ impl UsersApi {
         }
     }
 
+    /// Get User Credits
+    ///
+    /// Get the user data associated with a given token.
+    #[oai(path = "/users/@me/credits", method = "get", tag = "ApiTags::User")]
+    pub async fn get_user_credits(
+        &self,
+        session: Data<&Session>,
+        token: TokenBearer,
+    ) -> Result<JsonResponse<CreditResponse>> {
+        if let Some(credits) = user_info::get_vote_credits_for_token(&session, &token.0.token).await? {
+            Ok(JsonResponse::Ok(Json(CreditResponse { credits })))
+        } else {
+            Ok(JsonResponse::Unauthorized)
+        }
+    }
+
     /// Get User Guilds
     ///
-    /// Get the user guilds data associated with a give token.
+    /// Get the user guilds data associated with a given token.
     #[oai(path = "/users/@me/guilds", method = "get", tag = "ApiTags::User")]
     pub async fn get_user_guilds(
         &self,
@@ -138,7 +159,7 @@ impl UsersApi {
         }
     }
 
-    /// Set Room Playlist
+    /// Set Current Room Playlist
     ///
     /// Sets the user's active room playlist if applicable.
     #[oai(path = "/users/@me/rooms/playlist", method = "put", tag = "ApiTags::User")]
@@ -174,7 +195,7 @@ impl UsersApi {
         Ok(JsonResponse::Ok(Json(room)))
     }
 
-    /// Set Room Now Playing
+    /// Set Current Room Now Playing
     ///
     /// Sets the user's active room playing now entry if applicable.
     #[oai(path = "/users/@me/rooms/entry", method = "put", tag = "ApiTags::User")]
