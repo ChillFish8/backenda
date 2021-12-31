@@ -274,6 +274,11 @@ impl PlaylistsApi {
     ///
     /// Creates a playlist from the given payload, returning the fully populated
     /// playlist information (id, etc..).
+    ///
+    /// Note: This will filter out items to only include valid items. E.g.
+    /// Items that are not marked as public when the playlist is public will not be included.
+    /// Items that do no exist already as entries will not be included.
+    /// If a playlist is *not* public then it will include entries that the user owns.
     #[oai(path = "/playlists", method = "post", tag = "ApiTags::Playlists")]
     pub async fn create_playlist(
         &self,
@@ -288,7 +293,7 @@ impl PlaylistsApi {
 
         let items = entries::get_entries_with_ids(&session, payload.0.items).await?;
         let is_nsfw = items.iter().any(|v|  v.nsfw);
-        let items = filter_valid_entries(user_id, items);
+        let items = filter_valid_entries(user_id, payload.0.is_public, items);
 
         if items.is_empty() {
             return Ok(JsonResponse::BadRequest(Json(json!({
@@ -349,6 +354,11 @@ impl PlaylistsApi {
     ///
     /// Updates a playlist from the given payload, returning the updated, fully populated
     /// playlist information (id, etc..).
+    ///
+    /// Note: This will filter out items to only include valid items. E.g.
+    /// Items that are not marked as public when the playlist is public will not be included.
+    /// Items that do no exist already as entries will not be included.
+    /// If a playlist is *not* public then it will include entries that the user owns.
     #[oai(path = "/playlists", method = "put", tag = "ApiTags::Playlists")]
     pub async fn update_playlist(
         &self,
@@ -376,7 +386,7 @@ impl PlaylistsApi {
         let items = entries::get_entries_with_ids(&session, payload.0.items).await?;
 
         let is_nsfw = items.iter().any(|v|  v.nsfw);
-        let items = filter_valid_entries(user_id, items);
+        let items = filter_valid_entries(user_id, payload.0.is_public, items);
 
         if items.is_empty() {
             return Ok(JsonResponse::BadRequest(Json(json!({
@@ -411,6 +421,9 @@ impl PlaylistsApi {
     ///
     /// Updates a playlist entry from the given payload, returning the updated, fully populated
     /// playlist entry (id, etc..).
+    ///
+    /// NOTE: This won't update playlists that use the entry. Instead playlists will be
+    /// updated as and when requests (lazily).
     #[oai(path = "/entries", method = "put", tag = "ApiTags::Playlists")]
     pub async fn update_entry(
         &self,
@@ -459,9 +472,9 @@ impl PlaylistsApi {
 
 
 #[inline]
-fn filter_valid_entries(owner_id: i64, entries: Vec<PlaylistEntry>) -> Vec<Uuid> {
+fn filter_valid_entries(owner_id: i64, is_public: bool, entries: Vec<PlaylistEntry>) -> Vec<Uuid> {
     entries.into_iter()
-        .filter(|v| v.is_public | (*v.owner_id == owner_id))
+        .filter(|v| v.is_public | ((*v.owner_id == owner_id) & is_public))
         .map(|v| v.id)
         .collect()
 }
