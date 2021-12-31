@@ -22,34 +22,69 @@ impl From<scylla::Session> for Session {
 }
 
 impl Session {
+    #[instrument(skip(self, query), level = "trace")]
     pub async fn query(
         &self,
         query: &str,
-        values: impl ValueList,
+        values: impl ValueList + Debug,
     ) -> anyhow::Result<QueryResult> {
-        self.0.query(query, values).await.map_err(anyhow::Error::from)
+        trace!("executing query {}", query);
+        let result = self.0.query(query, values).await.map_err(anyhow::Error::from);
+
+        if let Err(ref e) = result {
+            error!("failed to execute query: {} due to error: {}", query, e);
+        }
+
+        result
     }
 
+    #[instrument(skip(self, query), level = "trace")]
     pub async fn query_prepared(
         &self,
         query: &str,
-        values: impl ValueList,
+        values: impl ValueList + Debug,
     ) -> anyhow::Result<QueryResult> {
         {
             let mut reader = self.1.read();
             if let Some(prep) = reader.get(query) {
-                return self.0
+                trace!("using cached prepared statement: {}", prep.get_statement());
+                let result = self.0
                     .execute(prep, values)
                     .await
-                    .map_err(anyhow::Error::from)
+                    .map_err(anyhow::Error::from);
+
+                if let Err(ref e) = result {
+                    error!("failed to execute prepared statement: {} due to error: {}", prep.get_statement(), e);
+                }
+
+                return result
             };
         }
 
-        let stmt = self.0.prepare(query).await?;
+        trace!("preparing new statement: {}", query);
+        let stmt = self.0.prepare(query)
+            .await
+            .map_err(anyhow::Error::from);
+
+        if let Err(ref e) = stmt {
+            error!(
+                "failed to prepare statement: {} due to error: {}",
+                query,
+                e,
+            );
+        }
+
+        let stmt = stmt?;
+
         let result = self.0
             .execute(&stmt, values)
             .await
             .map_err(anyhow::Error::from);
+
+        if let Err(e) = result {
+            error!("failed to execute prepared statement: {} due to error: {}", stmt.get_statement(), e);
+            return Err(e)
+        }
 
         let mut writer = self.1.write();
         writer.insert(query.to_string(), PreppedStmt::from(stmt));

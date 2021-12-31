@@ -41,7 +41,7 @@ pub async fn get_playlist_entries_for_token(
     };
 
     let result = sess.query_prepared(
-        "SELECT * FROM playlists_entries WHERE owner_id = ?",
+        "SELECT * FROM playlist_entries WHERE owner_id = ?",
         (user_id,)
     ).await?;
 

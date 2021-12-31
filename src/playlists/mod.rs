@@ -454,7 +454,7 @@ impl PlaylistsApi {
 #[inline]
 fn filter_valid_entries(owner_id: i64, is_public: bool, entries: Vec<PlaylistEntry>) -> Vec<Uuid> {
     entries.into_iter()
-        .filter(|v| v.is_public | ((*v.owner_id == owner_id) & is_public))
+        .filter(|v| v.is_public | ((*v.owner_id == owner_id) & !is_public))
         .map(|v| v.id)
         .collect()
 }
@@ -483,7 +483,7 @@ async fn insert_playlist(
             nsfw,
             title,
             votes
-        ) VALUE (?, ?, ?, ?, ?, ?, ?, 0)"#,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)"#,
         (
             id,
             owner_id,
@@ -527,7 +527,7 @@ async fn insert_entry(
             ref_link,
             title,
             votes
-        ) VALUE (?, ?, ?, ?, ?, ?, ?, 0)"#,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0)"#,
         (
             id,
             owner_id,

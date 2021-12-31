@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS playlist_votes (
 )
 WITH DEFAULT_TIME_TO_LIVE = 43200;
 --
-CREATE TABLE IF NOT EXISTS playlists_entries (
+CREATE TABLE IF NOT EXISTS playlist_entries (
     id uuid,
     owner_id bigint,
     title text,
