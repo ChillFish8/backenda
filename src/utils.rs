@@ -100,6 +100,7 @@ async fn token_checker(_: &Request, bearer: Bearer) -> Option<()> {
 
 #[derive(Object)]
 pub struct Detail {
+    /// More information for the given error.
     detail: String,
 }
 
@@ -119,8 +120,6 @@ pub enum JsonResponse<T: Send + Sync + ToJSON> {
     Ok(Json<T>),
 
     /// Some part of the request was invalid.
-    ///
-    /// More information is providing in the `detail` field.
     #[oai(status = 400)]
     BadRequest(Json<Detail>),
 
