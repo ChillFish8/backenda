@@ -114,7 +114,6 @@ dependencies = [
  "chrono",
  "concread",
  "lazy_static",
- "mime",
  "num_cpus 0.2.13",
  "poem",
  "poem-openapi",

@@ -91,4 +91,3 @@ CREATE TABLE IF NOT EXISTS user_vote_credits (
     credits int,
     PRIMARY KEY ( user_id )
 );
-

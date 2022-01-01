@@ -13,6 +13,7 @@ mod utils;
 mod rooms;
 mod playlists;
 mod images;
+mod rtc;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -32,6 +33,7 @@ pub enum ApiTags {
     Notifications,
     Rooms,
     Playlists,
+    Rtc,
 }
 
 #[tokio::main]

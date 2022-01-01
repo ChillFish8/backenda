@@ -16,7 +16,6 @@ reqwest = { version = "0.11.8", features = ["json"] }
 uuid = { version = "0.8.2", features = ["v4"] }
 tracing-subscriber = { version = "0.2.24", features = ["tracing-log"] }
 
-mime = "0.3.16"
 tracing-futures = "0.2.5"
 base64 = "0.13.0"
 num_cpus = "0.2.13"
