@@ -472,6 +472,13 @@ async fn insert_playlist(
     title: String,
     fetch_updated: bool,
 ) -> anyhow::Result<Option<Playlist>> {
+    let banner = if let Some(url) = banner {
+        crate::images::fetch_and_upload(&url).await?
+    } else {
+        None
+    };
+
+
     sess.query(
         r#"INSERT INTO playlists (
             id,

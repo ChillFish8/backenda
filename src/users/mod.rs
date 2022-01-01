@@ -101,14 +101,14 @@ impl UsersApi {
     #[oai(path = "/users/@me/notifications", method = "delete", tag = "ApiTags::User")]
     pub async fn remove_user_notifications(
         &self,
-        id: Query<String>,
+        id: Query<Uuid>,
         session: Data<&Session>,
         token: TokenBearer,
     ) -> Result<JsonResponse<Value>> {
         let res = notifications::delete_user_notification(
             &session,
             &token.0.token,
-            &id.0,
+            id.0,
         ).await?;
 
         if res.is_some() {

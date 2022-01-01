@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     description text,
     created_on timestamp,
     icon text,
-    PRIMARY KEY ( id, recipient_id )
+    PRIMARY KEY ( id, recipient_id, created_on )
 );
 --
 CREATE TABLE IF NOT EXISTS rooms (

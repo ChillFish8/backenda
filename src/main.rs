@@ -12,16 +12,17 @@ mod notifications;
 mod utils;
 mod rooms;
 mod playlists;
+mod images;
 
 use std::sync::Arc;
 use std::time::Duration;
 use poem::{Endpoint, EndpointExt, IntoResponse, Request, Response, Result, Route, Server};
 use poem::listener::TcpListener;
-use poem::middleware::Cors;
 use poem::http::Method;
 use poem_openapi::{OpenApiService, Tags};
 
 use concread::arcache::{ARCache, ARCacheBuilder};
+use poem::middleware::Cors;
 use tokio::time::Instant;
 
 #[derive(Tags)]
@@ -69,9 +70,9 @@ async fn main() -> anyhow::Result<()> {
         .at("/spec", poem::endpoint::make_sync(move |_| spec.clone()))
         .with(
             Cors::new()
-                .allow_origin("127.0.0.1:3000")
-                .allow_header("*")
-                .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
+                .allow_origins(["http://127.0.0.1:3000", "http://localhost:3000"])
+                .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::PUT, Method::OPTIONS])
+                .allow_credentials(true)
         )
         .around(log)
         .data(session)
@@ -89,7 +90,6 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-
 
 async fn log<E: Endpoint>(next: E, req: Request) -> Result<Response> {
     let method = req.method().clone();

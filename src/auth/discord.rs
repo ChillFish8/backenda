@@ -4,7 +4,6 @@ use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use reqwest::StatusCode;
 
-static REDIRECT_URI: &str = "http://127.0.0.1:8000/api/v0/auth/authorize";
 static DISCORD_URL: &str = "https://discord.com/api/v9";
 
 lazy_static! {
@@ -18,9 +17,14 @@ lazy_static! {
         std::env::var("DISCORD_CLIENT_SECRET")
             .unwrap_or_else(|_| "".to_string())
     };
+
+    static ref REDIRECT_URI: String = {
+        std::env::var("DISCORD_REDIRECT_URI")
+            .unwrap_or_else(|_| "http://127.0.0.1:8000/api/v0/auth/authorize".to_string())
+    };
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct ExchangeForm<'a> {
     client_id: u64,
     client_secret: &'a str,
@@ -45,9 +49,10 @@ pub async fn exchange_code(code: &str) -> Result<String> {
         client_secret: &CLIENT_SECRET,
         grant_type: "authorization_code",
         code,
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: &REDIRECT_URI,
     };
 
+    trace!("exchanging payload {:?}", &body);
     let resp = client.post(&format!("{}/oauth2/token", DISCORD_URL))
         .header(reqwest::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
         .form(&body)

@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
+use std::str::FromStr;
 use poem::Request;
 use poem_openapi::payload::Json;
 use poem_openapi::types::{ParseError, ParseFromJSON, ParseResult, ToJSON, Type};
@@ -12,19 +13,20 @@ use scylla::frame::response::result::CqlValue;
 use serde_json::{json, Value};
 
 
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct JsSafeBigInt(pub i64);
+
+impl Display for JsSafeBigInt {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl Deref for JsSafeBigInt {
     type Target = i64;
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl Display for JsSafeBigInt {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.to_string())
     }
 }
 
@@ -61,6 +63,15 @@ impl ParseFromJSON for JsSafeBigInt {
         value.as_i64()
             .map(|v| Self(v))
             .ok_or_else(|| ParseError::custom("cannot convert value into integer"))
+    }
+}
+
+impl FromStr for JsSafeBigInt {
+    type Err = poem_openapi::types::ParseError<Self>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let id = s.parse::<i64>()?;
+        Ok(Self(id))
     }
 }
 

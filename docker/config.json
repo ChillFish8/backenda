@@ -1,0 +1,40 @@
+{
+  "base_data_path": "/images",
+  "cache_size": 500,
+  "database_backend": {
+    "config": {
+      "connection_uri": "postgres://postgres:postgres@postgres/postgres",
+      "pool_size": 25
+    },
+    "type": "postgres"
+  },
+  "default_serving_format": "jpeg",
+  "default_serving_preset": "large",
+  "formats": {
+    "gif": false,
+    "jpeg": true,
+    "png": true,
+    "webp": false
+  },
+  "host": "0.0.0.0",
+  "log_level": "info",
+  "port": 7070,
+  "size_presets": {
+    "large": {
+      "height": 512,
+      "width": 512
+    },
+    "medium": {
+      "height": 256,
+      "width": 256
+    },
+    "small": {
+      "height": 128,
+      "width": 128
+    }
+  },
+  "webp_compression": 50,
+  "webp_method": 4,
+  "webp_quality": null,
+  "webp_threading": true
+}

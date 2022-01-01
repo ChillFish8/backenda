@@ -110,9 +110,11 @@ name = "backenda"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.13.0",
  "chrono",
  "concread",
  "lazy_static",
+ "mime",
  "num_cpus 0.2.13",
  "poem",
  "poem-openapi",

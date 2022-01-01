@@ -4,10 +4,12 @@ use scylla::IntoTypedRows;
 use poem_openapi::Object;
 
 use crate::db::Session;
+use crate::utils::JsSafeBigInt;
 
 #[derive(Object)]
 pub struct User {
-    pub id: String,
+    pub id: JsSafeBigInt,
+    #[oai(skip)]
     pub access_servers: HashMap<i64, bool>,
     pub avatar: Option<String>,
     pub updated_on: i64,
@@ -16,7 +18,7 @@ pub struct User {
 
 #[derive(Object)]
 pub struct Guild {
-    pub id: String,
+    pub id: JsSafeBigInt,
     pub icon: Option<String>,
     pub updated_on: i64,
     pub name: String,
@@ -65,17 +67,17 @@ pub async fn get_user_from_id(sess: &Session, user_id: i64) -> anyhow::Result<Op
     let rows = result.rows
         .ok_or_else(|| anyhow!("expected returned rows"))?;
 
-    type UserInfo = (i64, HashMap<i64, bool>, Option<String>, chrono::Duration, String);
+    type UserInfo = (JsSafeBigInt, HashMap<i64, bool>, Option<String>, chrono::Duration, String);
 
     let res = match rows.into_typed::<UserInfo>().next() {
         None => None,
         Some(v) => {
             let v = v?;
             Some(User {
-                id: v.0.to_string(),
+                id: v.0,
                 access_servers: v.1,
                 avatar: v.2,
-                updated_on: v.3.num_seconds(),
+                updated_on: v.3.num_milliseconds(),
                 username: v.4
             })
         },
@@ -136,14 +138,17 @@ pub async fn get_user_guilds_from_token(sess: &Session, token: &str) -> anyhow::
         Some(u) => u,
     };
 
-    let ids = user.access_servers.keys().copied().collect();
+    let ids = user.access_servers.keys()
+        .copied()
+        .collect();
+
     let guilds = get_guilds(sess, ids).await?;
 
     let guilds = guilds.into_iter()
         .map(|v| Guild {
-            id: v.0.to_string(),
+            id: v.0,
             icon:  v.1,
-            updated_on:  v.2.num_seconds(),
+            updated_on:  v.2.num_milliseconds(),
             name:  v.3,
             manager: user.access_servers.get(&v.0).copied().unwrap_or(false)
         })
@@ -153,7 +158,7 @@ pub async fn get_user_guilds_from_token(sess: &Session, token: &str) -> anyhow::
 }
 
 
-type GuildInfo = (i64, Option<String>, chrono::Duration, String);
+type GuildInfo = (JsSafeBigInt, Option<String>, chrono::Duration, String);
 
 /// Gets a guild based on it's guild id.
 async fn get_guilds(sess: &Session, guild_ids: Vec<i64>) -> anyhow::Result<Vec<GuildInfo>> {

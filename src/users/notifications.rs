@@ -62,7 +62,7 @@ pub async fn get_user_notifications(sess: &Session, user_id: i64) -> Result<Vec<
             title: v.1,
             description: v.2,
             icon: Option::flatten(v.3.map(|v| Icons::from_str(&v).ok())),
-            created_on: v.4.num_seconds(),
+            created_on: v.4.num_milliseconds(),
         })
         .collect();
 
@@ -73,13 +73,8 @@ pub async fn get_user_notifications(sess: &Session, user_id: i64) -> Result<Vec<
 pub async fn delete_user_notification(
     sess: &Session,
     token: &str,
-    id: &str
+    id: Uuid,
 ) -> Result<Option<()>> {
-    let id = match Uuid::from_str(id) {
-        Err(_) => return Ok(Some(())),
-        Ok(id) => id,
-    };
-
     let user_id = match user_info::get_user_id_from_token(sess, token).await? {
         None => return Ok(None),
         Some(user_id) => user_id,

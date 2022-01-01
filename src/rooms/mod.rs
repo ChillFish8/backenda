@@ -21,7 +21,7 @@ pub struct RoomCreationPayload {
     #[oai(validator(max_length = 32, min_length = 2))]
     title: String,
 
-    #[oai(validator(max_length = 48, min_length = 2))]
+    #[oai(validator(max_length = 128, min_length = 2))]
     topic: Option<String>,
 
     active_playlist: Option<Uuid>,
@@ -116,6 +116,49 @@ impl RoomsApi {
         let room = create_room_from_payload(&session, user_id, payload.0).await?;
         Ok(JsonResponse::ok(room))
     }
+
+    /// Get Room
+    ///
+    /// Get a room with a given ID.
+    ///
+    /// This will return the room info if any of the following conditions are met:
+    /// - The user owns the room.
+    /// - The room is invite only.
+    /// - The room is public.
+    /// - The room is private but allows guild members to join and the user
+    ///   requesting the room is a member of said guild.
+    #[oai(path = "/rooms", method = "get", tag = "ApiTags::Rooms")]
+    pub async fn get_room(
+        &self,
+        id: Query<Uuid>,
+        token: TokenBearer,
+        session: Data<&Session>,
+    ) -> Result<JsonResponse<Room>> {
+        let user = match user_info::get_user_from_token(&session, &token.0.token).await? {
+            None => return Ok(JsonResponse::unauthorized()),
+            Some(v) => v,
+        };
+
+        let room = match get_room_by_id(&session, id.0).await? {
+            None => return Ok(JsonResponse::bad_request("Room does not exist.")),
+            Some(room) => room,
+        };
+
+        if room.is_public | room.invite_only | (room.owner_id == user.id) {
+            return Ok(JsonResponse::ok(room))
+        }
+
+        let guild_id = match room.guild_id {
+            None => return Ok(JsonResponse::forbidden()),
+            Some(guild_id) => guild_id,
+        };
+
+        if user.access_servers.contains_key(&guild_id) {
+           Ok(JsonResponse::ok(room))
+        } else {
+            Ok(JsonResponse::forbidden())
+        }
+    }
 }
 
 
@@ -124,6 +167,12 @@ async fn create_room_from_payload(
     user_id: i64,
     payload: RoomCreationPayload,
 ) -> anyhow::Result<Room> {
+    let banner = if let Some(url) = payload.banner {
+        crate::images::fetch_and_upload(&url).await?
+    } else {
+        None
+    };
+
     sess.query(
         r#"
         INSERT INTO rooms (
@@ -141,7 +190,7 @@ async fn create_room_from_payload(
         ) VALUES (uuid(), ?, true, ?, ?, ?, ?, ?, null, ?, ?);
         "#,
         (
-            user_id, payload.active_playlist, payload.banner,
+            user_id, payload.active_playlist, banner,
             payload.guild_id, payload.invite_only, payload.is_public,
             payload.title, payload.topic,
             )

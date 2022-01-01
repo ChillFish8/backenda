@@ -124,7 +124,7 @@ pub async fn connect(node: &str) -> anyhow::Result<Session> {
         .build()
         .await?;
 
-    // session.query("CREATE KEYSPACE spooderfy WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1};", &[]).await?;
+    let _ = session.query("CREATE KEYSPACE spooderfy WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1};", &[]).await;
     session.use_keyspace("spooderfy", false).await?;
 
     create_tables(&session).await?;
