@@ -17,7 +17,7 @@ use crate::ApiTags;
 use crate::utils::{JsonResponse, SuperUserBearer, TokenBearer};
 use crate::db::Session;
 use crate::playlists::{get_playlist_by_id, Playlist, PlaylistEntry};
-use crate::rooms::models::Room;
+use crate::rooms::models::{ArchivedRoom, Room};
 use crate::users::notifications::Notification;
 
 
@@ -142,17 +142,11 @@ impl UsersApi {
         session: Data<&Session>,
         token: TokenBearer,
     ) -> Result<JsonResponse<Value>> {
-        let room = match room_info::get_active_room_for_token(&session, &token.0.token).await? {
-            None => return Ok(JsonResponse::unauthorized()),
-            Some(room) =>  room,
-        };
-
-        match room {
-            None => Ok(JsonResponse::ok(Value::Null)),
-            Some(mut room) => {
-                crate::rooms::set_room_inactive(&session, room.id.clone()).await?;
-
-                room.active = false;
+        match room_info::get_active_room_for_token(&session, &token.0.token).await? {
+            None => Ok(JsonResponse::unauthorized()),
+            Some(None) => Ok(JsonResponse::ok(Value::Null)),
+            Some(Some(room)) => {
+                crate::rooms::set_room_inactive(&session, room).await?;
 
                 Ok(JsonResponse::ok(Value::Null))
             }
@@ -236,16 +230,16 @@ impl UsersApi {
         Ok(JsonResponse::Ok(Json(room)))
     }
 
-    /// Get User Rooms
+    /// Get User Archived Rooms
     ///
-    /// Get all user rooms active or inactive.
+    /// Get all archived user rooms.
     #[oai(path = "/users/@me/rooms", method = "get", tag = "ApiTags::User")]
     pub async fn get_user_rooms(
         &self,
         session: Data<&Session>,
         token: TokenBearer,
-    ) -> Result<JsonResponse<Vec<Room>>> {
-        match room_info::get_rooms_for_token(&session, &token.0.token).await? {
+    ) -> Result<JsonResponse<Vec<ArchivedRoom>>> {
+        match room_info::get_archived_rooms(&session, &token.0.token).await? {
             None => Ok(JsonResponse::unauthorized()),
             Some(rooms) =>  Ok(JsonResponse::ok(rooms)),
         }

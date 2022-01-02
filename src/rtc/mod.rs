@@ -43,13 +43,9 @@ impl RtcApi {
         };
 
         let room = match rooms::get_room_by_id(&session, payload.room_id.clone()).await? {
-            None => return Ok(JsonResponse::bad_request("No room exists with this id.")),
+            None => return Ok(JsonResponse::bad_request("No active room exists with this id.")),
             Some(room) => room,
         };
-
-        if !room.active {
-            return Ok(JsonResponse::bad_request("room closed"))
-        }
 
         if *room.owner_id != *user.id {
             return Ok(JsonResponse::forbidden());
@@ -80,13 +76,9 @@ impl RtcApi {
         };
 
         let room = match rooms::get_room_by_id(&session, payload.room_id.clone()).await? {
-            None => return Ok(JsonResponse::bad_request("No room exists with this id.")),
+            None => return Ok(JsonResponse::bad_request("No active room exists with this id.")),
             Some(room) => room,
         };
-
-        if !room.active {
-            return Ok(JsonResponse::bad_request("room closed"))
-        }
 
         let has_guild_access = if let Some(guild_id) = room.guild_id.as_ref() {
           user.access_servers.contains_key(&*guild_id)

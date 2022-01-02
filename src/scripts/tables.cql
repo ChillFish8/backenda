@@ -42,10 +42,23 @@ CREATE TABLE IF NOT EXISTS rooms (
     topic text,
     is_public boolean,
     invite_only boolean,
-    active boolean,
     banner text,
-    PRIMARY KEY ( id, owner_id, active )
+    PRIMARY KEY ( (id, owner_id) )
 );
+--
+CREATE TABLE IF NOT EXISTS room_archive (
+    id uuid,
+    guild_id bigint,
+    owner_id bigint,
+    active_playlist uuid,
+    title text,
+    topic text,
+    is_public boolean,
+    invite_only boolean,
+    banner text,
+    PRIMARY KEY ( id, owner_id )
+)
+WITH DEFAULT_TIME_TO_LIVE = 2419200;
 --
 CREATE TABLE IF NOT EXISTS playlists (
     id uuid,

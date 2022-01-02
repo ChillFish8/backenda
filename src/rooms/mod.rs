@@ -84,7 +84,7 @@ impl RoomsApi {
             Some(r) => r,
         };
 
-        set_room_inactive(&session, room.id.clone()).await?;
+        set_room_inactive(&session, room.clone()).await?;
 
         Ok(JsonResponse::ok(room))
     }
@@ -222,10 +222,37 @@ pub async fn get_room_by_id(sess: &Session, id: Uuid) -> anyhow::Result<Option<R
     Ok(Some(room))
 }
 
-pub async fn set_room_inactive(sess: &Session, id: Uuid) -> anyhow::Result<()> {
+pub async fn set_room_inactive(sess: &Session, room: Room) -> anyhow::Result<()> {
     sess.query_prepared(
-        "UPDATE rooms SET active = false WHERE id = ?;",
-        (id,)
+        "DELETE FROM rooms WHERE id = ?;",
+        (room.id,)
+    ).await?;
+
+    sess.query_prepared(
+        r#"
+        INSERT INTO room_archive (
+            id,
+            owner_id,
+            active_playlist,
+            banner,
+            guild_id,
+            invite_only,
+            is_public,
+            title,
+            topic
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+        "#,
+        (
+            room.id,
+            *room.owner_id,
+            room.active_playlist,
+            room.banner,
+            room.guild_id.map(|v| *v),
+            room.invite_only,
+            room.is_public,
+            room.title,
+            room.topic,
+            )
     ).await?;
 
     Ok(())
