@@ -178,7 +178,6 @@ async fn create_room_from_payload(
         INSERT INTO rooms (
             id,
             owner_id,
-            active,
             active_playlist,
             banner,
             guild_id,
@@ -187,7 +186,7 @@ async fn create_room_from_payload(
             playing_now,
             title,
             topic
-        ) VALUES (uuid(), ?, true, ?, ?, ?, ?, ?, null, ?, ?);
+        ) VALUES (uuid(), ?, ?, ?, ?, ?, ?, null, ?, ?);
         "#,
         (
             user_id, payload.active_playlist, banner,

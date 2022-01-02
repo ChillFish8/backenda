@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS rooms (
     is_public boolean,
     invite_only boolean,
     banner text,
-    PRIMARY KEY ( (id, owner_id) )
+    PRIMARY KEY ( id, owner_id )
 );
 --
 CREATE TABLE IF NOT EXISTS room_archive (
