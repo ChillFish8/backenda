@@ -1,5 +1,3 @@
-mod discord;
-
 use std::collections::HashMap;
 use poem::Result;
 use poem::web::Data;
