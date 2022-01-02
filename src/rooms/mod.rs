@@ -204,7 +204,7 @@ async fn create_room_from_payload(
 }
 
 
-async fn get_room_by_id(sess: &Session, id: Uuid) -> anyhow::Result<Option<Room>> {
+pub async fn get_room_by_id(sess: &Session, id: Uuid) -> anyhow::Result<Option<Room>> {
     let result = sess.query_prepared(
         "SELECT * FROM rooms WHERE id = ?;",
         (id,)
